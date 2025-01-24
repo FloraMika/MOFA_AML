@@ -40,6 +40,9 @@ Analyses can be reproduced using the different R codes available in the src fold
 
 ![Top weighted features for each data type for 11 hallmarks](img/#14_venn_diagramm.png)
 
+NB: MOFA model and CITE-seq analyses were performed on the vale server https://vale.scilifelab.se/ using R v3.6.0, MOFA2 v0.99.7, Seurat v3.2.2 to keep the original analysis.
+All downstream analyses were done using R v4.4.2.
+
 ## Authors
 - [Flora Mikaeloff](https://github.com/FloraMika)
 - Tojo James
