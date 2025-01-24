@@ -1,10 +1,15 @@
 ---
-title: "survival MOFA Factor 8"
+title: "survival analysis MOFA using factors"
 output: html_notebook
 ---
 
 
 Analysis:
+1. Survival analysis using Factor 8 (high/low) in swedish cohort
+2. Survival analysis using Factor 8 (high/low) calculated from transcriptomics in swedish cohort
+3. Survival analysis using Factor 8 (high/low) calculated from transcriptomics in BeatAML cohort (chemotherapy)
+4. Survival analysis using Factor 4 (high/low) calculated from transcriptomics in BeatAML cohort (sorafenib)
+5. Survival analysis using Factor 2 (high/low) calculated from transcriptomics in BeatAML cohort (ven+aza)
 
 
 
