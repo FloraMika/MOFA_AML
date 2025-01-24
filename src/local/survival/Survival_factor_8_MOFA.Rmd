@@ -36,7 +36,7 @@ library(xlsx)
 ```{r}
 load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
 ls()
-source("/home/flomik/Code/Hallmarks_AML/src/functions_Hallmarks.R")
+#source("/home/flomik/Code/Hallmarks_AML/src/functions_Hallmarks.R")
 annot.df <- read.table("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
 load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
 ```
@@ -239,7 +239,7 @@ dev.off()
 ```{r}
 name_ana <- "BeatAML"
 path_txn <- "/home/flomik/Data/BeatAML/beataml_waves1to4_norm_exp_dbgap.txt"
-path_clinical <- "/home/flomik/Code/Hallmarks_AML/data/Beta_AML/Publications/beataml_wv1to4_clinical.xlsx"
+path_clinical <- "/home/flomik/Code/MOFA_AML/data/BeatAML/beataml_wv1to4_clinical.xlsx"
 path_factors <- "/home/flomik/Code/MOFA_AML/data/Factors/AML_MOFAplus_top_factors_v04_f600 (1).xlsx"
 ```
 
