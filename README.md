@@ -1,5 +1,6 @@
 # MOFA_AML
-Code for the paper
+
+Code for the analyses from the paper : Data-driven hallmarks in acute myeloid leukemia: a strategy towards diagnostics and individualized therapy 
 
 ## About
 
