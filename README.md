@@ -46,3 +46,5 @@ All downstream analyses were done using R v4.4.2.
 ## Acknowledgment
 
 ## License
+
+This project is licensed under the Apache License.
