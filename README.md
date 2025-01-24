@@ -29,8 +29,6 @@ Rscript source/requierements.R
 
 ## Pipeline
 
-![Pipeline](img/#14_venn_diagramm.png)
-
 
 ## AML MOFA model
 
@@ -38,7 +36,7 @@ MOFA model can be accessed using the following code. For the installation and us
 
 Analyses can be reproduced using the different R codes available in the src folder.
 
-![Top weighted features for each data type for 11 hallmarks](img/#14_venn_diagramm.png)
+![Summary Hallmarks](img/copypaste.tiff)
 
 NB: MOFA model and CITE-seq analyses were performed on the vale server https://vale.scilifelab.se/ using R v3.6.0, MOFA2 v0.99.7, Seurat v3.2.2 to keep the original analysis.
 All downstream analyses were done using R v4.4.2.
