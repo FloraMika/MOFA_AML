@@ -17,14 +17,11 @@ cd MOFA_AML
 ## Requirements
 
 1. A linux distribution.
-2. Install the few required **R packages** :
+2. Install the required **R packages** :
 
 ```
 Rscript source/requierements.R
-# This command will install the following packages:
-# sva==3.26.0
-# pca3d==0.10
-# dplyr==0.8.0.1
+# This command will install the packages necessary for the analysis 
 ```
 
 ## Pipeline
@@ -36,7 +33,7 @@ MOFA model can be accessed using the following code. For the installation and us
 
 Analyses can be reproduced using the different R codes available in the src folder.
 
-![Summary Hallmarks](img/copypaste.tiff)
+![Summary Hallmarks](img/copypaste.png)
 
 NB: MOFA model and CITE-seq analyses were performed on the vale server https://vale.scilifelab.se/ using R v3.6.0, MOFA2 v0.99.7, Seurat v3.2.2 to keep the original analysis.
 All downstream analyses were done using R v4.4.2.
