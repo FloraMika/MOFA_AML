@@ -101,8 +101,16 @@ colnames(cell_type_filt_neg)[2] <- "Cell_N"
 
 
 ```{r}
-data <- merge(cell_type_filt_pos, cell_type_filt_neg, by = "ind")
+data <- merge(cell_type_filt_pos, cell_type_filt_neg, by = "ind", all.x = TRUE, all.y = TRUE)
 data$Freq <- 1
+data$Cell_N[data$Cell_N == "LSC104_Ng2017_DOWN"] <- "LSC(down)"
+data$Cell_N[data$Cell_N == "MLL_LSC_Somervaille2009_Up"] <- "MLL_LSC(up)"
+data$Cell_N[data$Cell_N == "MLL_LSC_Somervaille2009_Down"] <- "MLL_LSC(down)"
+
+
+data$Cell_P[data$Cell_P == "LSC104_Ng2017_DOWN"] <- "LSC(down)"
+data$Cell_P[data$Cell_P == "MLL_LSC_Somervaille2009_Up"] <- "MLL_LSC(up)"
+data$Cell_P[data$Cell_P == "MLL_LSC_Somervaille2009_Down"] <- "MLL_LSC(down)"
 ```
 
 ```{r}
@@ -120,27 +128,63 @@ col_mofa <- c("#584588",
 ```
 
 ```{r}
+table(data$ind)
+```
+
+```{r}
+data$ind <- factor(data$ind, levels = paste0("DDHM", 1:11))
+```
+
+```{r}
+x <- data.frame(table(data$ind))
+x
+```
+
+```{r}
+for (i in 1:11) {
+  factor <- paste0("DDHM", i)
+  freq <- x$Freq[x$Var1 == factor]
+  data$Freq[data$ind == factor] <- data$Freq[data$ind == factor]/log10(freq)
+}
+```
+
+
+data$Freq[data$ind == "DDHM1"] <- 0.5
+data$Freq[data$ind == "DDHM2"] <- 0.5
+data$Freq[data$ind == "DDHM6"] <- 0.5
+data$Freq[data$ind == "DDHM7"] <- 0.5
+
+
+data$Freq[data$ind == "DDHM9"] <- 2
+data$Freq[data$ind == "DDHM10"] <- 2
+data$Freq[data$ind == "DDHM11"] <- 2
+
+
+```{r}
 ggplot(data = data,
        aes(axis1 = Cell_N, axis2 = ind,
            y = Freq))+
-  geom_stratum(color = "black")+
-  geom_alluvium(aes(fill = ind))+
+  geom_stratum(aes(fill = ind), alpha = 1)+
+  geom_alluvium(aes(fill = ind), alpha = 0.7)+
   geom_text(stat = "stratum", alpha =  1, aes(label = after_stat(stratum))) +
   theme_classic()+
-  scale_fill_manual(values = col_mofa[c(1, 2, 4, 5, 6, 7, 8, 9)])
-ggsave("results/figures/sankey_plot_cell_types_N_Tojo.png", width = 7, height = 5)
-ggsave("results/figures/sankey_plot_cell_types_N_Tojo.pdf", width = 7, height = 5)
+  scale_fill_manual(values =  col_mofa[c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)], na.value="00FFFFFF")
+
+ggsave("results/figures/sankey_plot_cell_types_N_Tojo_corrected.png", width = 7, height = 5)
+ggsave("results/figures/sankey_plot_cell_types_N_Tojo_corrected.pdf", width = 7, height = 5)
 ```
 
 ```{r}
 ggplot(data = data,
        aes(axis1 = ind, axis2 = Cell_P,
            y = Freq))+
-  geom_stratum(color = "black")+
-  geom_alluvium(aes(fill = ind))+
+  geom_stratum(aes(fill = ind), alpha = 1)+
+  geom_alluvium(aes(fill = ind), alpha = 0.7)+
   geom_text(stat = "stratum", alpha =  1, aes(label = after_stat(stratum))) +
   theme_classic()+
-  scale_fill_manual(values =  col_mofa[c(1, 2, 4, 5, 6, 7, 8, 9)])
-ggsave("results/figures/sankey_plot_cell_types_P_Tojo.png", width = 7, height = 5)
-ggsave("results/figures/sankey_plot_cell_types_P_Tojo.pdf", width = 7, height = 5)
+  scale_fill_manual(values =  col_mofa[c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10 , 11)], na.value="00FFFFFF")
+
+ggsave("results/figures/sankey_plot_cell_types_P_Tojo_corrected.png", width = 7, height = 5)
+ggsave("results/figures/sankey_plot_cell_types_P_Tojo_corrected.pdf", width = 7, height = 5)
 ```
+
