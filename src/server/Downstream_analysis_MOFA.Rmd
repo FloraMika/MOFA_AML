@@ -1,9 +1,17 @@
 ---
-title: "Feature selection using MOFA"
+title: "Downstream analysis MOFA"
 output:
   pdf_document: default
   html_notebook: default
 ---
+
+NB: Code was run on the vale server https://vale.scilifelab.se/ using R v3.6.0 and MOFA2 v0.99.7 to stick to the original analysis.
+
+Analysis:
+1. Visualization and model quality
+2. Correlation factors with clinical data
+3. Pathway analysis for each factor
+4. Cell type enrichment for each factor
 
 ### clean environment
 ```{r}
@@ -57,7 +65,7 @@ pdf("results/figures/MOFA_overview_model_Tojo.pdf")
 plot_data_overview(mofa.sel)
 dev.off()
 ```
-## correlation factors
+## Correlation factors
 Verify that the Factors are largely uncorrelated
 ```{r}
 plot_factor_cor(mofa.sel)
@@ -82,7 +90,7 @@ pdf("results/figures/MOFA_variance_modeL_Tojo_plot_2.pdf")
 plot_variance_explained(mofa.sel, plot_total = T)[[2]]
 dev.off()
 ```
-## checking model / percentage variance per factor
+## Checking model / percentage variance per factor
 ```{r}
 mofa.sel@cache
 ```
@@ -91,7 +99,6 @@ colnames(mofa.sel@samples_metadata)
 ```
 
 ## load clinical
-
 ```{r}
 clinical_data <- read.xlsx("/home/flora.mikaeloff/Projects/MOFA/Clinical_mofa_retro.xlsx", 1)
 clinical_data <- clinical_data[!duplicated(clinical_data$patient_id),]
@@ -135,6 +142,7 @@ clinical_data$sample
 ```{r}
 clinical_data$treat_intention <- NULL
 ```
+
 ## Add ELN2022
 ```{r}
 eln <- read.csv("/home/flora.mikaeloff/Projects/MOFA/MOFA_R_Objects/ELN_2022_AO.csv", sep = ";")
@@ -397,33 +405,4 @@ print(nrow(cells_pos))
 print(nrow(cells_neg))
 print(nrow(cells_both))
 ```
-
-## RNA
-```{r}
-#colnames(ensembl.react.m) <- gsub(".p", ".g", colnames(ensembl.react.m))
-#colnames(cells) <- gsub(".p", ".g", colnames(cells))
-```
-
-
-```{r}
-#col <- colorRampPalette(c("grey97","red"))(n = 100)
-#path_pos <- MOFA_GSEA(mofa.sel, "positive", "cor.adj.parametric", "RNAseq", ensembl.react.m, col)
-#cells_pos <- MOFA_GSEA(mofa.sel, "positive", "cor.adj.parametric", "RNAseq", cells, col)
-
-#col <- colorRampPalette(c("grey97","#0000FF"))(n = 200)
-#path_neg <- MOFA_GSEA(mofa.sel, "negative", "cor.adj.parametric", "RNAseq", ensembl.react.m, col)
-#cells_neg <- MOFA_GSEA(mofa.sel, "negative", "cor.adj.parametric", "RNAseq", cells, col)
-
-#path_both <- MOFA_GSEA(mofa.sel, "all", "cor.adj.parametric", "RNAseq", ensembl.react.m, col)
-#cells_both <- MOFA_GSEA(mofa.sel, "all", "cor.adj.parametric", "RNAseq", cells, col)
-
-#print(ncol(path_pos))
-#print(ncol(path_neg))
-#print(ncol(path_both))
-
-#print(ncol(cells_pos))
-#print(ncol(cells_neg))
-#print(ncol(cells_both))
-```
-
 

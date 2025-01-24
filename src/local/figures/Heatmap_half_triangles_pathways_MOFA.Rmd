@@ -1,0 +1,159 @@
+---
+title: "Split heatmap pathways"
+output: html_notebook
+---
+
+Analysis :
+1. Make heatmap including pathway analysis from positive and negative weights for each factor from MOFA model
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory
+
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML")) 
+```
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(purrr)
+library(ggplot2)
+library(xlsx)
+```
+
+## function found on stackoverflow
+https://stackoverflow.com/questions/65887187/how-to-display-two-categorical-variables-on-one-tile-of-a-heatmap-triangle-til
+```{r}
+make_triangles <- function(x, y, point = "up") {
+  x <- as.integer(as.factor((x)))
+  y <- as.integer(as.factor((y)))
+
+  if (point == "up") {
+    newx <- sapply(x, function(x) {
+      c(x - 0.5, x - 0.5, x + 0.5)
+    }, simplify = FALSE)
+    newy <- sapply(y, function(y) {
+      c(y - 0.5, y + 0.5, y + 0.5)
+    }, simplify = FALSE)
+  } else if (point == "down") {
+    newx <- sapply(x, function(x) {
+      c(x - 0.5, x + 0.5, x + 0.5)
+    }, simplify = FALSE)
+    newy <- sapply(y, function(y) {
+      c(y - 0.5, y - 0.5, y + 0.5)
+    }, simplify = FALSE)
+  }
+  data.frame(x = unlist(newx), y = unlist(newy))
+}
+```
+
+```{r}
+path_neg <- read.csv("/home/flomik/Code/MOFA_AML/data/server/reactome_top_pathways_tojo_negative.csv", row.names = 1)
+path_pos <- read.csv("/home/flomik/Code/MOFA_AML/data/server/reactome_top_pathways_tojo_positive.csv", row.names = 1)
+
+unique_pos <- rownames(path_pos)[!rownames(path_pos) %in% rownames(path_neg)]
+unique_neg <- rownames(path_neg)[!rownames(path_neg) %in% rownames(path_pos)]
+
+n_pos <- data.frame(matrix(NA, length(unique_neg), 11))
+rownames(n_pos) <- unique_neg
+colnames(n_pos) <- paste0("Factor", 1:11)
+
+n_neg <- data.frame(matrix(NA, length(unique_pos), 11))
+rownames(n_neg) <- unique_pos
+colnames(n_neg) <- paste0("Factor", 1:11)
+
+path_neg <- rbind(path_neg, n_neg)
+path_pos <- rbind(path_pos, n_pos)
+
+path_neg <- path_neg[order(rownames(path_neg), rownames(path_pos)),]
+path_pos <- path_pos[order(rownames(path_pos), rownames(path_neg)),]
+
+rownames(path_pos) == rownames(path_neg)
+```
+
+```{r}
+row_names_pos <- rownames(path_pos)
+row_names_neg <- rownames(path_neg)
+```
+
+```{r}
+path_neg_2  <- stack(path_neg)
+path_neg_2$ind_2 <- rep(row_names_neg, ncol(path_neg))
+path_neg_2$sign <- "neg"
+path_neg_2$type <- "path-factor"
+
+
+path_pos_2  <- stack(path_pos)
+path_pos_2$ind_2 <- rep(row_names_pos, ncol(path_pos))
+path_pos_2$sign <- "pos"
+path_pos_2$type <- "path-factor"
+```
+
+```{r}
+pathways <- rbind(path_pos_2, path_neg_2)
+```
+
+```{r}
+pathways$ind <- gsub("Factor", "DDHM", pathways$ind)
+pathways$ind <- factor(pathways$ind, levels = rev(c(pathways$ind[!duplicated(pathways$ind)])))
+```
+
+```{r}
+# required, otherwise you cannot use the values as fill
+mydat_wide <- pathways %>% pivot_wider(names_from = "sign", values_from = "values")
+mydat_wide <- data.frame(mydat_wide)
+#mydat_wide <- mydat_wide[!is.na(mydat_wide$pos) | !is.na(mydat_wide$neg),]
+# making your ordered months factor
+mydat_wide$ind <- droplevels(factor(mydat_wide$ind))
+# The actual triangle computation
+newcoord_up <- make_triangles(mydat_wide$ind, mydat_wide$ind_2)
+newcoord_down <- make_triangles(mydat_wide$ind, mydat_wide$ind_2, point = "down")
+# just a dirty trick for renaming
+newcoord_down <- newcoord_down %>% dplyr::select(xdown = x, ydown = y)
+# you need to repeat each row of your previous data frame 3 times
+repdata <- map_df(1:nrow(mydat_wide), function(i) mydat_wide[rep(i, 3), ])
+newdata <- bind_cols(repdata, newcoord_up, newcoord_down)
+```
+
+```{r}
+ggplot(newdata) +
+  geom_polygon(aes(x = x, y = y, fill = pos, group = interaction(ind_2, ind)), color = "#555555", size = 0.1) +
+  scale_fill_gradient(low = "grey97", high = "red", limits = c(0, 33), na.value="#DDDDDD") +
+  ggnewscale::new_scale_fill() +
+  geom_polygon(aes(x = xdown, y = ydown, fill = neg, group = interaction(ind_2, ind)), color = "#555555", size = 0.1) +
+  scale_fill_gradient(low = "grey97", high = "blue", limits = c(0, 33), na.value="#DDDDDD") +
+  scale_x_continuous(breaks = seq_along(unique(mydat_wide$ind)), 
+                     labels = unique(levels(mydat_wide$ind))) +
+  scale_y_continuous(breaks = seq_along(unique(mydat_wide$ind_2)),
+                     labels = unique(mydat_wide$ind_2))+
+  coord_equal()+
+  theme(panel.background = element_blank(), # bg of the panel
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        axis.title=element_blank(),
+        panel.grid=element_blank(),
+        axis.ticks=element_blank(),
+        axis.text.x = element_text(size = 14, angle = 60, hjust=1, colour = "black"),
+        axis.text.y = element_text(size = 14, colour = "black"))+ coord_flip()
+
+ggsave("results/figures/test_triangles_pathways_MOFA_2_corrected.pdf", width = 15, height = 13)
+ggsave("results/figures/test_triangles_pathways_MOFA_2_corrected.png", width = 15, height = 14)
+```
+
+## input pathways
+```{r}
+pathways <- pathways[!is.na(pathways$values),]
+pathways$sign[pathways$sign == "pos"] <- 1
+pathways$sign[pathways$sign == "neg"] <- -1
+for (i in 1:11) {
+  sub_path <- pathways[pathways$ind == paste0("DDHM", i),]
+  write.xlsx(sub_path, "manuscript/Hallmarks_top_pathways_v2.xlsx", sheetName= paste0("Factor_", i), col.names=TRUE, row.names=FALSE, append=TRUE)
+}
+```
+
+

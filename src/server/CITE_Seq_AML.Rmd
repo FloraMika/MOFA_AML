@@ -6,6 +6,12 @@ output: html_notebook
 
 NB: Code was run on the vale server https://vale.scilifelab.se/ using R v3.6.0 and Seurat v3.2.2 to stick to the original analysis.
 
+Analysis:
+1. UMAP patients, clusters and normal cell types
+2. Assign AML cell types to CITe-seq RNA-seq data
+3. Calculate factor score for each cell
+4. Extract ADT values for downstream analysis
+
 ### clean environment
 ```{r}
 rm(list=ls())
