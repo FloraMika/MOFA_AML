@@ -1,0 +1,458 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
+```
+
+```{r}
+library(reshape2)
+library(ggplot2)
+library(ggnewscale)   ## The magic
+library(dplyr)
+library(cowplot)
+library(RColorBrewer)
+library(ComplexHeatmap)
+```
+
+```{r}
+data <- read.csv("/home/flomik/Code/MOFA_AML/data/server/scores_cells_and_factors_CITE_seq_clean.csv")
+data <- data[data$cell_1 != "Unassigned",]
+table(data$cell_1)
+x <- names(table(data$cell_1))[table(data$cell_1) > 10]
+y <- names(table(data$cell_1))[table(data$cell_1) < 10]
+
+data <- data[,c(which(colnames(data) == "cell_1"), grep("score$", colnames(data)))]
+#data <- data[data$cell_1 %in% x,]
+table(data$cell_1)
+data$cell_1 <- gsub("_", ".", data$cell_1)
+```
+
+```{r}
+library(ggplot2)
+```
+
+## done on the server
+```{r}
+#data_heatmap <- data[data$cell_1 != "Unassigned",]
+#data_heatmap[,-1] <- scale(data_heatmap[,-1])
+
+#pdf("results/figures/scRNA/cell_types_scaled_factors_values.pdf")
+#Heatmap(as.matrix(data_heatmap), split =  data_heatmap$cell_1, name = "Z-score")
+#dev.off()
+
+#data_heatmap <- aggregate(. ~ cell_1, data_heatmap, mean)
+```
+
+```{r}
+library(ggpubr)
+table_comp <- data.frame(comp = NA, value = NA)
+table_cat <- data.frame(Var1 = NA, Var2 = NA, Freq = NA)
+table_average <- data.frame()
+cells <- data
+
+my_comparisons <- list(c("LSPC.Cycle", "LSPC.Quiescent"), c("cDC.like", "GMP.like"), c("cDC.like", "LSPC.Quiescent"), c("cDC.like", "LSPC.Cycle"), c("cDC.like", "Ctrl_Myeloid"), c("Ctrl_Myeloid", "LSPC.Quiescent"), c("Ctrl_Myeloid", "LSPC.Cycle"), c("Ctrl_Myeloid", "GMP.like"))
+
+a <- 1
+for (i in 2:12) {
+  print(colnames(cells)[i])
+  cells[,12 + a] <- as.integer(cells[,i] > median(cells[,i], na.rm = TRUE))+1
+  colnames(cells)[12 + a] <- paste0("group_Factor", i -1)
+  m <- table(cells[,1], cells[,12+a])
+  m <- data.frame(m)
+  m$Var2 <- paste0("Factor", i - 1, "_", m$Var2)
+  table_cat  <- rbind(table_cat, m)
+  a <- a + 1
+  gg <- ggplot(cells, aes(y=cells[,i], x=cell_1, fill = cell_1)) + 
+    geom_boxplot()+theme(legend.position = "none")+ 
+    stat_compare_means(comparisons = my_comparisons)+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+  ggsave(paste0("results/figures/scRNA/boxplots_cell_types_", colnames(cells)[i],".png"), height = 6, width = 8)
+  
+  x <- pairwise.wilcox.test(cells[,i], cells[,1], data=cells, p.adjust.method = "fdr")
+  pval <- data.frame(x$p.value)
+  pval$Cells <- rownames(pval)
+  pval  <- melt(pval)
+  pval$comp <- paste0(pval$Cells, "_", pval$variable)
+  pval <- pval[,c(4, 3)]
+  colnames(pval)[2] <- paste0("Factor", i - 1)
+  table_comp <- cbind(table_comp, pval)
+}
+
+colnames(table_comp)
+
+rownames(table_comp) <- table_comp[,3]
+table_comp <- table_comp[,c(grep("Factor", colnames(table_comp)))]
+table_comp <- table_comp[!is.na(table_comp$Factor1),]
+table_comp[table_comp > 0.05] <- NA
+```
+
+```{r}
+table_sum <- data.frame(cell = NA, factor = NA, mean = NA)
+
+for (i in 2:12) {
+  for (cell in cells$cell_1[!duplicated(cells$cell_1)]) {
+    m <- mean(cells[cells$cell_1 == cell,i])
+    table_2 <- data.frame(cell = cell, factor = paste0("Factor", i -1), mean = m)
+    table_sum <- rbind(table_sum, table_2)
+  }
+}
+```
+
+```{r}
+table_sum$cell <- gsub("Ctrl_Myeloid", "Ctrl.Myeloid", table_sum$cell)
+```
+
+```{r}
+rownames(table_comp) <- gsub("Ctrl_Myeloid", "Ctrl.Myeloid", rownames(table_comp))
+rownames(table_comp) <- gsub("LSC104_Ng2017_DOWN", "LSC104.Ng2017.DOWN", rownames(table_comp))
+rownames(table_comp) <- gsub("LSC104_Ng2017_UP", "LSC104.Ng2017.UP", rownames(table_comp))
+```
+
+```{r}
+a <- 1
+for (i in 1:11) {
+  factor <- paste0("Factor", i)
+  print(factor)
+  for (cell_comp in rownames(table_comp)) {
+    cell_1 <- gsub(".*\\_", "", cell_comp)
+    cell_2 <- gsub("\\_.*", "", cell_comp)
+    print(cell_1)
+    print(cell_2)
+    m_c1 <- table_sum$mean[table_sum$cell == cell_1 & table_sum$factor == factor & !is.na(table_sum$mean)]
+    m_c2 <- table_sum$mean[table_sum$cell == cell_2 & table_sum$factor == factor & !is.na(table_sum$mean)]
+    table_comp[rownames(table_comp) == cell_comp, 11 + a] <- log2(m_c2/m_c1)
+  }
+  a <- a + 1
+}
+
+colnames(table_comp)[12:22] <- paste0("LFC_", 1:11)
+table_comp_2 <-  data.frame(table_comp[,12:22])
+table_comp <-  data.frame(table_comp[,-c(12:22)])
+table_comp_2[is.na(table_comp)] <- rep(NA, length(table_comp[is.na(table_comp)]))
+```
+
+```{r}
+rownames(table_comp_2) <- gsub("_", "_vs_", rownames(table_comp_2))
+```
+
+```{r}
+rownames(table_comp_2) <- gsub("LSC104.Ng2017.DOWN", "LSC(down)", rownames(table_comp_2))
+rownames(table_comp_2) <- gsub("LSC104.Ng2017.UP", "LSC(up)", rownames(table_comp_2))
+rownames(table_comp_2) <- gsub("MLL.LSC.Somervaille2009.Up", "MLL_LSC(up)", rownames(table_comp_2))
+rownames(table_comp_2) <- gsub("MLL.LSC.Somervaille2009.Down", "MLL_LSC(down)", rownames(table_comp_2))
+```
+
+```{r}
+library(ComplexHeatmap)
+table_comp_2[is.na(table_comp_2)] <- 0
+pdf("results/figures/scRNA/cell_types_comparison_factors.pdf", height = 12, width = 10)
+Heatmap(table_comp_2, name = "LFC")
+dev.off()
+```
+## surface proteins / factors / cell types
+```{r}
+data_adt <- read.csv("/home/flomik/Code/MOFA_AML/data/server/data_ADT_cell_markers_norm.csv", row.names = 1)
+data_adt <- data.frame(t(data_adt))
+data_adt$Cell <- rownames(data_adt)
+data_adt$Cell  <-  gsub("\\.", "-", data_adt$Cell)
+```
+
+```{r}
+data <- read.csv("/home/flomik/Code/MOFA_AML/data/server/scores_cells_and_factors_CITE_seq_clean.csv")
+rownames(data) <- data$X
+data <- data[,c(which(colnames(data) == "cell_1"), grep("score$", colnames(data)))]
+data$Cell <- rownames(data)
+```
+
+```{r}
+data <- merge(data, data_adt, by = "Cell")
+data$Cell <- NULL
+colnames(data)
+
+i_factors <- which(grepl("Factor", colnames(data)))
+i_prot <- which(grepl("Total", colnames(data)))
+```
+
+```{r}
+data_heatmap <- data
+data_heatmap <- data_heatmap[data_heatmap$cell_1 != "Unassigned",]
+data_type <- colnames(data)[-1]
+data_type <- gsub("\\_.*", "", data_type)
+data_type[!grepl("Factor", data_type)] <- "Surface_proteins"
+data_type[data_type == "Factor"] <- "DDHMs"
+data_heatmap[,2:12] <- scale(data_heatmap[,2:12])
+data_heatmap[,13:ncol(data_heatmap)] <- scale(data_heatmap[,13:ncol(data_heatmap)])
+
+colnames(data_heatmap) <- gsub("\\_score", "", colnames(data_heatmap))
+colnames(data_heatmap) <- gsub("Factor", "DDHM", colnames(data_heatmap))
+colnames(data_heatmap) <- gsub(".TotalA", "", colnames(data_heatmap))
+
+pdf("results/figures/scRNA/cell_types_surface_proteins_factors_together.pdf", width = 10)
+Heatmap(data_heatmap[,-1], name = "z-score", row_split = cells$cell_1, , column_split =  data_type, show_row_names = FALSE, row_title_rot = 0)
+dev.off()
+```
+
+```{r}
+data_heatmap <- data[,!grepl("Factor", colnames(data))]
+data_heatmap <- data_heatmap[data_heatmap$cell_1 != "Unassigned",]
+data_heatmap[,-1] <- data.frame(scale(data_heatmap[,-1]))
+
+pdf("results/figures/scRNA/cell_types_surface_proteins.pdf")
+Heatmap(data_heatmap[,-1], name = "z-score(clr)", row_split = cells$cell_1, show_row_names = FALSE, row_title_rot = 0)
+dev.off()
+```
+
+## association factor and cell types
+```{r}
+table_correlation <- data.frame(Var1 = NA, Var2 = NA, R = NA, pval = NA)
+
+for (i in i_factors) {
+  for (j in i_prot) {
+    res <- cor.test(data[,i], data[,j], method = "spearman")
+    pval <- res$p.value
+    R <- res$estimate
+    table_correlation_2 <- data.frame(Var1 = colnames(data)[i], Var2 = colnames(data)[j], R = R, pval = pval)
+    table_correlation <- rbind(table_correlation, table_correlation_2)
+  }
+}
+
+table_correlation$FDR <- p.adjust(table_correlation$pval, "fdr")
+table_correlation$R[table_correlation$FDR > 0.05] <- NA
+table_correlation$R[abs(table_correlation$R) < 0.4] <- NA
+
+table_correlation <- table_correlation[!is.na(table_correlation$R),]
+table_correlation$pval <- NULL
+table_correlation$FDR <- NULL
+
+table_correlation <- dcast(Var1 ~ Var2, data = table_correlation)
+
+rownames(table_correlation) <- table_correlation$Var1
+
+pdf("results/figures/scRNA/association_surface_proteins_factors_single_cells.pdf")
+Heatmap(table_correlation[,-1], column_order = colnames(table_correlation[,-1]), row_order = rownames(table_correlation[,-1]),name = "R")
+dev.off()
+```
+
+```{r}
+data <- data[!is.na(data$cell_1),]
+table(data$cell_1)
+x <- names(table(data$cell_1))[table(data$cell_1) > 2]
+y <- names(table(data$cell_1))[table(data$cell_1) < 2]
+data <- data[,c(which(colnames(data) == "cell_1"), grep("score$", colnames(data)), grep("Total", colnames(data)))]
+data <- data[data$cell_1 %in% x,]
+table(data$cell_1)
+```
+```{r}
+i_factors <- which(grepl("Factor", colnames(data)))
+i_cells <- 1
+i_prot <- which(grepl("Total", colnames(data)))
+```
+
+## association factor and cell types
+```{r}
+table_correlation <- data.frame(Cell = NA, Var1 = NA, Var2 = NA, R = NA, pval = NA)
+
+for (k in data$cell_1[!duplicated(data$cell_1)]) {
+  data_sub <- data[data$cell_1 == k,]
+  for (i in i_factors) {
+    for (j in i_prot) {
+      res <- cor.test(data_sub[,i], data_sub[,j], method = "spearman")
+      pval <- res$p.value
+      R <- res$estimate
+      table_correlation_2 <- data.frame(Cell = k, Var1 = colnames(data_sub)[i], Var2 = colnames(data_sub)[j], R = R, pval = pval)
+      table_correlation <- rbind(table_correlation, table_correlation_2)
+    }
+  }
+}
+
+table_correlation$FDR <- p.adjust(table_correlation$pval, "fdr")
+table_correlation$R[table_correlation$FDR > 0.05] <- NA
+table_correlation$R[abs(table_correlation$R) < 0.4] <- NA
+
+table_correlation_2 <- table_correlation
+
+table_correlation <- table_correlation[!is.na(table_correlation$R),]
+table_correlation$pval <- NULL
+table_correlation$FDR <- NULL
+```
+
+```{r}
+table_correlation_2 <- table_correlation
+```
+
+```{r}
+table_correlation$Var1 <- paste0(table_correlation$Cell, "_", table_correlation$Var1)
+table_correlation$Var2 <- paste0(table_correlation$Cell, "_", table_correlation$Var2)
+table_correlation$Cell <- NULL
+
+table_correlation <- dcast(Var1 ~ Var2, data = table_correlation, value.var = "R")
+
+col_group <- gsub("\\_.*", "", colnames(table_correlation)[-1])
+
+
+rownames(table_correlation) <- table_correlation$Var1
+row_group <- gsub("\\_.*", "", rownames(table_correlation))
+
+rownames(table_correlation) <- gsub("_score", "", rownames(table_correlation))
+
+
+pdf("results/figures/scRNA/association_surface_proteins_factors_single_cells_Johon_Dick_cells.pdf", width = 12, height = 12)
+Heatmap(as.matrix(table_correlation[,-1]), 
+        column_order = colnames(table_correlation[,-1]),
+        row_order = rownames(table_correlation),
+        name = "R", 
+        column_split = col_group, 
+        row_split = row_group,
+        row_labels = gsub(".*\\_F", "F", rownames(table_correlation)),
+        column_labels = gsub(".*\\_", "", colnames(table_correlation)[-1])
+        )
+dev.off()
+```
+
+```{r}
+table_correlation_2$Var2 <- gsub(".TotalA", "", table_correlation_2$Var2)
+```
+
+```{r}
+table_correlation_2$Cell <- as.factor(table_correlation_2$Cell)
+cells <- levels(table_correlation_2$Cell)
+table_correlation_2$Cell <- as.integer(table_correlation_2$Cell)
+```
+
+```{r}
+table_correlation_2$Var1 <- gsub("_score", "", table_correlation_2$Var1)
+table_correlation_2$Var1 <- factor(table_correlation_2$Var1, levels = paste0("Factor_", 1:11))
+factors <- levels(table_correlation_2$Var1)
+table_correlation_2$Var1 <- as.integer(table_correlation_2$Var1)
+table_correlation_2 <- table_correlation_2[order(table_correlation_2$Cell, table_correlation_2$Var1),]
+```
+
+```{r}
+tf3.m <- melt(table_correlation_2, id.vars = c("Var2"))
+tf3.m$var2 <- NA
+tf3.m[tf3.m$variable == "Cell",]$var2 <- 1
+tf3.m[tf3.m$variable == "Var1",]$var2 <- 2
+tf3.m[tf3.m$variable == "R",]$var2 <- 3
+```
+
+```{r}
+tf3.labs <- subset(tf3.m, variable == "R")
+tf3.labs$ang <- seq(from=(360/nrow(tf3.labs))/1.5, 
+                    to=(1.5* (360/nrow(tf3.labs)))-360, 
+                    length.out=nrow(tf3.labs))+80
+
+tf3.labs$hjust <- 0
+tf3.labs$hjust[which(tf3.labs$ang < -90)] <- 1
+tf3.labs$ang[which(tf3.labs$ang < -90)] <- (180+tf3.labs$ang)[which(tf3.labs$ang < -90)]
+```
+
+```{r}
+high_col <-"#df764c"
+low_col <- "#4cb5df"
+col_b <- "grey"
+mycols_cells <- brewer.pal(n = 8, name = "Set1")
+```
+
+```{r}
+mycols_factors <- c("#584588",
+"#4076A9",
+"#ABCADA",
+"#BED797",
+"#5E9F48",
+"#F1EFB3",
+"#EEC17F",
+"#E88840",
+"#E99D9B",
+"#CE3D31",
+"#BCB2C9")
+```
+
+```{r}
+ptf3<-ggplot( ) +
+  geom_tile(data=tf3.m[tf3.m$variable == "Cell",],
+            aes(x=as.numeric(rownames(tf3.labs)),y=var2, fill=factor(value)),
+            colour=col_b, size = 0) +  ylim(c(0, max(tf3.m$var2) + 1.5))+ scale_fill_manual("Cell", values = mycols_cells, 
+                      labels = cells) +
+  new_scale("fill") +   #### MAGIC
+  geom_tile(data=tf3.m[tf3.m$variable == "Var1",],
+            aes(x=as.numeric(rownames(tf3.labs)),y=var2, fill=factor(value)),
+            colour=col_b, size = 0) +  ylim(c(0, max(tf3.m$var2) + 1.5))+ scale_fill_manual("Factor", values = mycols_factors, 
+                      labels = factors) +
+  new_scale("fill") +   #### MAGIC
+  geom_tile(data=tf3.m[tf3.m$variable == "R",],
+            aes(x=as.numeric(rownames(tf3.labs)),y=var2, fill=value),
+            colour=col_b, size = 0.1) +
+  scale_fill_gradient2(midpoint=0, mid="white", low=low_col, high=high_col, limits = c(-1, 1), name="R", na.value="white")+
+
+  ylim(c(0, max(tf3.m$var2) + 1.5)) +
+  coord_polar(theta="x") +
+  theme(panel.background = element_blank(), # bg of the panel
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        axis.title=element_blank(),
+        panel.grid=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks=element_blank(),
+        axis.text.y=element_text(size=0))+
+  geom_text(data=tf3.labs, 
+            aes(x=as.numeric(rownames(tf3.labs)), 
+                y=var2+0.75, 
+                label=Var2, angle=ang, hjust=hjust), 
+            size=2.5)
+plot(ptf3)
+
+ggsave("results/figures/scRNA/circle_surface_proteins_factors_summary.png", width = 7, height = 7)
+```
+
+```{r}
+col_b <- "white"
+```
+
+https://www.ascistance.co.uk/blog/tag/ggplot2/
+
+```{r}
+ptf3<-ggplot( ) +
+  geom_tile(data=tf3.m[tf3.m$variable == "Cell",],
+            aes(x=as.numeric(rownames(tf3.labs)),y=var2, fill=factor(value)),
+            colour=col_b, size = 0) +  ylim(c(0, max(tf3.m$var2) + 1.5))+ scale_fill_manual("Cell", values = mycols_cells, 
+                      labels = cells) +
+  new_scale("fill") +   #### MAGIC
+  geom_tile(data=tf3.m[tf3.m$variable == "Var1",],
+            aes(x=as.numeric(rownames(tf3.labs)),y=var2, fill=factor(value)),
+            colour=col_b, size = 0) +  ylim(c(0, max(tf3.m$var2) + 1.5))+ scale_fill_manual("Factor", values = mycols_factors, 
+                      labels = factors) +
+  new_scale("fill") +   #### MAGIC
+  geom_tile(data=tf3.m[tf3.m$variable == "R",],
+            aes(x=as.numeric(rownames(tf3.labs)),y=var2, fill=value),
+            colour=col_b, size = 0.3) +
+            scale_fill_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")), name="R", limits = c(-1, 1), na.value="white")+
+
+  ylim(c(0, max(tf3.m$var2) + 1.5)) +
+  coord_polar(theta="x") +
+  theme(panel.background = element_blank(), # bg of the panel
+        panel.grid.major = element_blank(), # get rid of major grid
+        panel.grid.minor = element_blank(), # get rid of minor grid
+        axis.title=element_blank(),
+        panel.grid=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks=element_blank(),
+        axis.text.y=element_text(size=0))+
+  geom_text(data=tf3.labs, 
+            aes(x=as.numeric(rownames(tf3.labs)), 
+                y=var2+0.75, 
+                label=Var2, angle=ang, hjust=hjust), 
+            size=2.5)
+plot(ptf3)
+
+ggsave("results/figures/scRNA/circle_surface_proteins_factors_summary_V2.png", width = 7, height = 7)
+```
+
+

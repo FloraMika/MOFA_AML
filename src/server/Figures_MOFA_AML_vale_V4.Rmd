@@ -1,0 +1,429 @@
+---
+title: "Feature selection using MOFA"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flora.mikaeloff/Projects/Hallmarks/")) 
+```
+
+```{r}
+library(MultiAssayExperiment)
+library(MOFA2)
+library(RColorBrewer)
+library(GSEABase)
+library(tidyverse)
+library(minfi)
+library(xlsx)
+library(org.Hs.eg.db)
+library(maditr)
+```
+
+# Analysis
+
+```{r}
+name_ana <- "AML_KI_retrospective"
+```
+
+## load data
+```{r}
+load("/home/flora.mikaeloff/Projects/MOFA/MOFA_R_Objects/AML_MAexp_v05.RData")
+ls()
+```
+
+## load MOFA object
+```{r}
+annot.df <- read.table("/home/flora.mikaeloff/Projects/MOFA/MOFA_R_Objects/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
+load("/home/flora.mikaeloff/Projects/MOFA/MOFA_R_Objects/MOFA_v04_train_list.RData")
+```
+
+## Select MOFA object
+```{r}
+mofa.sel <- select_model(mofa.list)
+```
+
+## Model overview.
+```{r}
+plot_data_overview(mofa.sel)
+pdf("results/figures/MOFA_overview_model_Tojo.pdf")
+plot_data_overview(mofa.sel)
+dev.off()
+```
+## correlation factors
+Verify that the Factors are largely uncorrelated
+```{r}
+plot_factor_cor(mofa.sel)
+pdf("results/figures/correlation_factors_model_Tojo.pdf")
+plot_factor_cor(mofa.sel)
+dev.off()
+```
+## variance decomposition by factor
+Percentage of variance explained by each factor across each data modality
+```{r}
+plot_variance_explained(mofa.sel)
+pdf("results/figures/MOFA_variance_model_Tojo.pdf")
+plot_variance_explained(mofa.sel)
+dev.off()
+```
+
+## Total variance
+model is providing a good fit to the data
+```{r}
+plot_variance_explained(mofa.sel, plot_total = T)[[2]]
+pdf("results/figures/MOFA_variance_modeL_Tojo_plot_2.pdf")
+plot_variance_explained(mofa.sel, plot_total = T)[[2]]
+dev.off()
+```
+## checking model / percentage variance per factor
+```{r}
+mofa.sel@cache
+```
+```{r}
+colnames(mofa.sel@samples_metadata)
+```
+
+## load clinical
+
+```{r}
+clinical_data <- read.xlsx("/home/flora.mikaeloff/Projects/MOFA/Clinical_mofa_retro.xlsx", 1)
+clinical_data <- clinical_data[!duplicated(clinical_data$patient_id),]
+names(clinical_data)[1] <- "sample"
+clinical_data$group <- "AML"
+```
+
+```{r}
+table(clinical_data$ELN_2022_AO)
+```
+
+```{r}
+clinical_data <- clinical_data[order(samples_names(mofa.sel)$AML, clinical_data$sample),]
+```
+
+## add metadata
+```{r}
+# Sanity check
+stopifnot(all(sort(clinical_data$sample)==sort(unlist(samples_names(mofa.sel)))))
+
+# Add sample metadata to the model
+samples_metadata(mofa.sel) <- clinical_data
+```
+
+```{r}
+clinical_data <- clinical_data[,!grepl("date", colnames(clinical_data))]
+clinical_data$vitally_frozen_million_cells <- NULL
+clinical_data$karyotype <- NULL
+clinical_data$karyotype_info <- NULL
+clinical_data$aml_subtype <- NULL
+clinical_data$group <- NULL
+clinical_data$MDS <- NULL
+clinical_data$MPD <- NULL
+clinical_data$sample_type <- NULL
+```
+
+```{r}
+clinical_data$sample
+```
+
+```{r}
+clinical_data$treat_intention <- NULL
+```
+## Add ELN2022
+```{r}
+eln <- read.csv("/home/flora.mikaeloff/Projects/MOFA/MOFA_R_Objects/ELN_2022_AO.csv", sep = ";")
+colnames(eln)[1] <- "sample"
+#eln$sample
+#clinical_data <- merge(clinical_data, eln, by = "sample", all.x = TRUE)
+#table(clinical_data$ELN_2022_AO.x)
+```
+
+## relationship clinical data and latent factors
+```{r}
+factors <- data.frame(sample = rownames(mofa.sel@expectations$Z$AML), mofa.sel@expectations$Z$AML)
+factors_clinical <- merge(clinical_data, factors, by = "sample")
+total_regression_table <- as.data.frame(matrix(0,nrow=0,ncol=7))
+colnames(total_regression_table) <- c("Clinical_parameter","Factor","Estimate","StdError","tStat","pvalue", "padjust")
+
+for (i in 2:26) {
+  for(j in 27:37){
+    plm <- as.data.frame(matrix(0,nrow=1,ncol=6))
+    colnames(plm) <- c("Clinical_parameter","Factor","Estimate","StdError","tStat","pvalue")
+    #print(names(factors_clinical)[i])
+    plm[1, 1] <- names(factors_clinical)[j]
+    plm[1, 2] <- names(factors_clinical)[i]
+    plm[1,3:6] <- coef(summary(lm(factors_clinical[,j] ~ factors_clinical[,i], data = factors_clinical)))[2,]
+    plm$padjust <- p.adjust(plm$pvalue,method="BH")
+    total_regression_table <- rbind(total_regression_table, plm)
+  }
+}
+
+sigplm <- total_regression_table
+#sigplm <- total_regression_table[total_regression_table$padjust<0.05,] #look only at those with adjusted p.value < 0.05
+write.csv(sigplm, "results/association_clinical_MOFA_latent_factors.csv")
+```
+
+```{r}
+sign <- total_regression_table[total_regression_table$padjust<0.05,]
+write.csv(sign, "results/association_clinical_MOFA_latent_factors_filt.csv")
+```
+
+```{r}
+estimates <- dcast(sigplm, Clinical_parameter ~ Factor, value.var = "Estimate")
+row_names_table <- estimates$Clinical_parameter
+estimates$Clinical_parameter <- NULL
+estimates <- data.frame(estimates)
+#estimates[abs(estimates) < 0.5]  <- NA
+```
+
+```{r}
+p.values <- dcast(sigplm, Clinical_parameter ~ Factor, value.var = "padjust")
+
+row_names_table <- p.values$Clinical_parameter
+p.values$Clinical_parameter <- NULL
+p.values <- data.frame(p.values)
+p.values[p.values > 0.05] <- NA
+#p.values[abs(estimates) < 0.2]  <- NA
+p.values <- -log10(p.values)
+p.values <- t(p.values)
+colnames(p.values) <- row_names_table
+
+rownames(p.values)
+
+p.values <- p.values[,c(1, 4, 5, 6, 7, 8, 9, 10, 11, 2, 3)]
+p.values <- p.values[c(8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2, 17, 3, 18, 4, 5, 6, 19, 20, 21, 22, 23, 24, 7, 25),]
+
+#p.values_2 <- p.values
+#p.values_2[8:9,1] <- "no_Tojo"
+#p.values_2[!is.na(p.values_2[,1]),2] <- "no_Tojo"
+#p.values_2[1:9,3] <- "no_Tojo"
+#p.values_2[1:9,3] <- "no_Tojo"
+
+col <- colorRampPalette(c("grey97","red"))(n = 100)
+pheatmap::pheatmap(p.values, color = col, show_rownames = T, labels_row = str_trunc(rownames(p.values), width = 40),
+                   cluster_rows=FALSE, cluster_cols=FALSE,border_color = "#555555",fontsize =14,fontsize_row=14,fontsize_col=14)
+
+pdf("results/figures/heatmap_clinical_association_fators.pdf")
+pheatmap::pheatmap(p.values, color = col, show_rownames = T, labels_row = str_trunc(rownames(p.values), width = 40),
+                   cluster_rows=FALSE, cluster_cols=FALSE,border_color = "#555555",fontsize =14,fontsize_row=14,fontsize_col=14)
+dev.off()
+```
+
+
+## Correlation with clinical data
+```{r}
+correlate_factors_with_covariates(mofa.sel, 
+  covariates = c("sex", "age", "aml_etiology", "blast_bm_percentage", "blast_blood_abs", "genetic_risk", "complete_remission", "status", "ELN_2022_AO", "cytogenetic_risk", "who_perfstatus", "ELN2017", "time_days"), 
+  plot="log_pval"
+)
+```
+
+## Load reactome
+```{r}
+ensembl.react <- read.table("/home/flora.mikaeloff/Projects/MOFA/MOFA_R_Objects/Ensembl2Reactome_All_Levels.txt", header = F, sep="\t", comment.char ="", quote = "")
+colnames(ensembl.react) <- c("ensembl.ID", "Path.ID", "URI", "Path.name", "Evidence", "Species")
+ensembl.react <- ensembl.react[ensembl.react$Species=="Homo sapiens",]
+```
+
+```{r}
+ensembl.react.m <- as.matrix(table(ensembl.react$Path.name, ensembl.react$ensembl.ID))
+attributes(ensembl.react.m)$class <- "matrix" 
+ensembl.react.m[ensembl.react.m>0] <- 1
+ensembl.react.m <- ensembl.react.m[rowSums(ensembl.react.m)!=0,]
+ensembl.react.m <- ensembl.react.m[,colSums(ensembl.react.m)!=0]
+```
+
+```{r}
+tmp1 <- colnames(ensembl.react.m)
+tmp2 <- annot.df[grepl("^.*\\.p$", annot.df$feature),]
+tmp1 <- as.character(tmp2$feature)[match(tmp1, tmp2$id)]
+tmp1[is.na(tmp1)] <- colnames(ensembl.react.m)[is.na(tmp1)]
+colnames(ensembl.react.m) <- tmp1
+```
+
+
+```{r}
+cells <- read.csv("/home/flora.mikaeloff/Projects/MOFA/cell_types_genes.txt", row.names = 1)
+cells <- as.matrix(cells)
+```
+
+```{r}
+#col <- colorRampPalette(c("grey97","red"))(n = 100)
+#MOFA_object <- mofa.sel
+#sign <- "positive"
+#genes_set <- cells
+#test <- "cor.adj.parametric"
+#view <- "Proteomics"
+```
+
+```{r}
+keep_top_rows_df <- function(df,n_top=5) {
+  # Create a new data frame with NA values
+  df_new <- data.frame(matrix(NA, ncol = ncol(df), nrow = nrow(df)))
+  rownames(df_new) <- rownames(df)
+  colnames(df_new) <- colnames(df)
+  
+  # Loop through each column
+  for (i in 1:ncol(df)) {
+    # Select the top 5 rows for the current column
+    top_rows <- order(df[, i], decreasing = TRUE)[1:n_top]
+    
+    # Copy the values from the original data frame to the new data frame
+    df_new[top_rows, i] <- df[top_rows, i]
+  }
+  df_new <- df_new[rowSums(is.na(df_new)) != ncol(df_new), ]
+  df_new[is.na(df_new)] = 0
+  # Return the new data frame
+  return(df_new)
+}
+```
+
+```{r}
+#' Perform survival analysis for each MOFA factor
+#'
+#' @param file variable containing file
+#' @param name name of the file
+#' @param destination destination folder for file
+MOFA_GSEA <- function(MOFA_object, sign, test, view, genes_set, col, name){
+  res <- run_enrichment(MOFA_object, view = view, feature.sets = genes_set, sign = sign, statistical.test = test)
+  p.values <- res$pval.adj
+  p.values <- p.values[!rowSums(p.values>0.05, na.rm = T) == ncol(p.values),, drop=FALSE]
+  p.values[p.values>  0.05] <- NA
+  p.values[p.values < 1e-30] <- 1e-30
+  p.values <- -log10(p.values)
+  
+  # Calculate distance
+  #clustering_cols <- hclust(dist(t(p.values)))  # Cluster columns
+  #clustering_rows <- hclust(dist(p.values))  # Cluster rows
+  
+  #clustering_rows$order
+  #clustering_cols$order
+  #p.values <-  p.values[clustering_rows$order,sort(clustering_cols$order)]
+  if (ncol(p.values) > 15) {
+    p.values <- keep_top_rows_df(p.values,n_top=15)
+  }
+  #p.values <- p.values[rowSums(is.na(p.values)) != ncol(p.values), ]
+  #p.values <- as.matrix(t(p.values))
+  #if (nrow(p.values) > 1000) {
+  #  plot_gsea <- pheatmap::pheatmap(p.values,
+  #                                color = col,
+  #                                show_rownames = T,
+  #                                labels_row = str_trunc(rownames(p.values), width = 40),
+  #                                cluster_rows= FALSE, 
+  #                                cluster_cols= FALSE,
+  #                                fontsize = 14,
+  #                                fontsize_row= 14,
+  #                                fontsize_col= 14,
+  #                                border_color = "#555555")
+  #  pdf(paste0("results/heatmap_reactome_top_pathways_",sign,"_",view,"_",test,".pdf"))
+  #  print(plot_gsea)
+  #  dev.off()
+  #}
+  
+  dim(p.values)
+  write.csv(p.values, paste0("results/GSEA_top_", name, "_", sign,"_", view,"_", test, ".csv"))
+  return(p.values)
+}
+```
+
+## permutations (best but not always work, rank test)
+```{r}
+col <- colorRampPalette(c("grey97","red"))(n = 100)
+path_pos <- MOFA_GSEA(mofa.sel, "positive", "permutation", "Proteomics", ensembl.react.m, col, "reactome_path")
+cells_pos <- MOFA_GSEA(mofa.sel, "positive", "permutation", "Proteomics", cells, col, "cell_types")
+
+col <- colorRampPalette(c("grey97","#0000FF"))(n = 200)
+path_neg <- MOFA_GSEA(mofa.sel, "negative", "permutation", "Proteomics", ensembl.react.m, col, "reactome_path")
+cells_neg <- MOFA_GSEA(mofa.sel, "negative", "permutation", "Proteomics", cells, col, "cell_types")
+
+path_both <- MOFA_GSEA(mofa.sel, "all", "permutation", "Proteomics", ensembl.react.m, col, "reactome_path")
+cells_both <- MOFA_GSEA(mofa.sel, "all", "permutation", "Proteomics", cells, col, "cell_types")
+
+print(nrow(path_pos))
+print(nrow(path_neg))
+print(nrow(path_both))
+
+print(nrow(cells_pos))
+print(nrow(cells_neg))
+print(nrow(cells_both))
+```
+
+## Default - not the best
+```{r}
+col <- colorRampPalette(c("grey97","red"))(n = 100)
+path_pos <- MOFA_GSEA(mofa.sel, "positive", "parametric", "Proteomics", ensembl.react.m, col, "reactome_path")
+cells_pos <- MOFA_GSEA(mofa.sel, "positive", "parametric", "Proteomics", cells, col, "cell_types")
+
+col <- colorRampPalette(c("grey97","#0000FF"))(n = 200)
+path_neg <- MOFA_GSEA(mofa.sel, "negative", "parametric", "Proteomics", ensembl.react.m, col, "reactome_path")
+cells_neg <- MOFA_GSEA(mofa.sel, "negative", "parametric", "Proteomics", cells, col, "cell_types")
+
+path_both <- MOFA_GSEA(mofa.sel, "all", "parametric", "Proteomics", ensembl.react.m, col, "reactome_path")
+cells_both <- MOFA_GSEA(mofa.sel, "all", "parametric", "Proteomics", cells, col, "cell_types")
+
+print(nrow(path_pos))
+print(nrow(path_neg))
+print(nrow(path_both))
+
+print(nrow(cells_pos))
+print(nrow(cells_neg))
+print(nrow(cells_both))
+```
+
+## Really good --> check correlations factors and genes
+```{r}
+col <- colorRampPalette(c("grey97","red"))(n = 100)
+path_pos <- MOFA_GSEA(mofa.sel, "positive", "cor.adj.parametric", "Proteomics", ensembl.react.m, col, "reactome_path")
+cells_pos <- MOFA_GSEA(mofa.sel, "positive", "cor.adj.parametric", "Proteomics", cells, col, "cell_types")
+
+col <- colorRampPalette(c("grey97","#0000FF"))(n = 200)
+path_neg <- MOFA_GSEA(mofa.sel, "negative", "cor.adj.parametric", "Proteomics", ensembl.react.m, col, "reactome_path")
+cells_neg <- MOFA_GSEA(mofa.sel, "negative", "cor.adj.parametric", "Proteomics", cells, col, "cell_types")
+
+path_both <- MOFA_GSEA(mofa.sel, "all", "cor.adj.parametric", "Proteomics", ensembl.react.m, col, "reactome_path")
+cells_both <- MOFA_GSEA(mofa.sel, "all", "cor.adj.parametric", "Proteomics", cells, col, "cell_types")
+
+print(nrow(path_pos))
+print(nrow(path_neg))
+print(nrow(path_both))
+
+print(nrow(cells_pos))
+print(nrow(cells_neg))
+print(nrow(cells_both))
+```
+
+## RNA
+```{r}
+#colnames(ensembl.react.m) <- gsub(".p", ".g", colnames(ensembl.react.m))
+#colnames(cells) <- gsub(".p", ".g", colnames(cells))
+```
+
+
+```{r}
+#col <- colorRampPalette(c("grey97","red"))(n = 100)
+#path_pos <- MOFA_GSEA(mofa.sel, "positive", "cor.adj.parametric", "RNAseq", ensembl.react.m, col)
+#cells_pos <- MOFA_GSEA(mofa.sel, "positive", "cor.adj.parametric", "RNAseq", cells, col)
+
+#col <- colorRampPalette(c("grey97","#0000FF"))(n = 200)
+#path_neg <- MOFA_GSEA(mofa.sel, "negative", "cor.adj.parametric", "RNAseq", ensembl.react.m, col)
+#cells_neg <- MOFA_GSEA(mofa.sel, "negative", "cor.adj.parametric", "RNAseq", cells, col)
+
+#path_both <- MOFA_GSEA(mofa.sel, "all", "cor.adj.parametric", "RNAseq", ensembl.react.m, col)
+#cells_both <- MOFA_GSEA(mofa.sel, "all", "cor.adj.parametric", "RNAseq", cells, col)
+
+#print(ncol(path_pos))
+#print(ncol(path_neg))
+#print(ncol(path_both))
+
+#print(ncol(cells_pos))
+#print(ncol(cells_neg))
+#print(ncol(cells_both))
+```
+
+

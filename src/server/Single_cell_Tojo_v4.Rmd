@@ -1,0 +1,432 @@
+---
+title: "Cite seq analysis"
+output: html_notebook
+---
+
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flora.mikaeloff/Projects/Hallmarks/")) 
+```
+
+
+```{r}
+library(Seurat)
+library(ggpubr)
+library(ComplexHeatmap)
+library(stringr)
+library(xlsx)
+library(RColorBrewer)
+library(readxl)
+library(data.table)
+```
+
+```{r}
+data <- readRDS("/home/flora.mikaeloff/data/data/scRNAseq/Wells_combined_sctransformed.rds")
+path_factors <- "/home/flora.mikaeloff/Projects/Hallmarks/data/AML_MOFAplus_top_factors_v04_f600_2.xlsx"
+```
+
+## Load markers from Dick et al paper
+```{r}
+geneset <- read.csv("/home/flora.mikaeloff/Projects/Hallmarks/data/AMLCellType_Genesets.gmt.txt", header = FALSE)
+
+gs <- list()
+for (i in 1:nrow(geneset)) {
+  line <- geneset[i,1]
+  path <- gsub("\t.*", "", line)
+  genes <- gsub(path, "", line)
+  genes <- gsub("\t\t", "", genes)
+  genes <- str_split(genes, "\t")
+  gs[[path]] <- genes[[1]]
+  print(path)
+}
+```
+
+## add Van Galen controls
+```{r}
+vangalen <- read.xlsx("/home/flora.mikaeloff/Projects/Hallmarks/data/Van_Galen_markers/mmc3.xlsx", 1)
+normal_HSC <- as.vector(vangalen$Normal.derived..combined)
+normal_GMP <- as.vector(vangalen$NA..1)
+normal_myeloid <- as.vector(vangalen$NA..2)
+```
+
+```{r}
+gs[["HSC_Prog"]] <- normal_HSC[-c(1, 52:54)]
+gs[["GMP"]] <- normal_GMP[-c(1, 52:54)]
+gs[["Myeloid"]] <- normal_myeloid[-c(1, 52:54)]
+
+print(length(gs))
+```
+
+## Calculate score for each cell type per cell (NB cutoff LFC = 3)
+```{r}
+for (i in 1:length(gs)) {
+  features <- list(gs[[i]])
+  name_cell <- names(gs)[i]
+  print(length(features[[1]][features[[1]] %in% rownames(data@assays$RNA)]))
+  data <- AddModuleScore(
+    object = data,
+    features = features,
+    name = name_cell,
+    search = TRUE)
+}
+```
+
+```{r}
+print(colnames(data@meta.data)[51:70])
+```
+```{r}
+colnames(data@meta.data)[51:70] <- gsub("1$", "", colnames(data@meta.data)[51:70])
+```
+
+# Plot scores of cell types
+```{r}
+for(i in 51:70){
+  print(colnames(data@meta.data)[i])
+  
+  FeaturePlot(data,
+            features = colnames(data@meta.data)[i], label = FALSE, repel = TRUE) +
+            scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")))+ ggplot2::theme(legend.position = "none")
+  
+  ggsave(paste0("results/figures/score_plot_", colnames(data@meta.data)[i],".pdf"), width = 4, height = 4)
+  ggsave(paste0("results/figures/score_plot_", colnames(data@meta.data)[i],".png"), width = 4, height = 4)
+}
+
+```
+
+```{r}
+write.csv(data@meta.data, "results/scores_Johon_Dick_HC_cells.csv")
+```
+
+## remove control cells HL60
+```{r}
+keep <- rownames(data@meta.data)[!grepl("HL60", data@meta.data$PatientLevel)]
+data <- subset(data, cells = keep)
+```
+
+```{r}
+# Projecting singlet identities on TSNE visualization
+DimPlot(data, reduction = "umap", group.by = "Well")+ ggplot2::theme(legend.position = "none")
+```
+
+```{r}
+col_cells <- c(RColorBrewer::brewer.pal(6,'Set1'), "#d2d5d9")
+
+DimPlot(data, reduction = "umap", group.by = "PatientLevel", cols = col_cells) + ggplot2::theme(legend.position = "none")
+ggsave(paste0("results/figures/score_plot_Tojo_patients.pdf"), width = 4, height = 4)
+ggsave(paste0("results/figures/score_plot_Tojo_patients.png"), width = 4, height = 4)
+
+table(data@meta.data$PatientLevel)
+```
+
+
+```{r}
+DimPlot(data, reduction = "umap", group.by = "predicted.id") + ggplot2::theme(legend.position = "none")
+ggsave(paste0("results/figures/score_plot_Tojo_cell_types.png"), width = 4, height = 4)
+```
+
+```{r}
+DimPlot(data, reduction = "umap", group.by = "seurat_clusters") + ggplot2::theme(legend.position = "none")
+ggsave(paste0("results/figures/score_plot_Tojo_clusters.pdf"), width = 4, height = 4)
+ggsave(paste0("results/figures/score_plot_Tojo_clusters.png"), width = 4, height = 4)
+```
+
+## Assign cells --> extract top 3 scores / only LFC > 3 / score 1 > 0.5 compared to score 2
+```{r}
+cell_scores <- data@meta.data[,51:70]
+cell_scores$score_1 <- NA
+cell_scores$score_2 <- NA
+cell_scores$score_3 <- NA
+
+cell_scores$cell_1 <- NA
+cell_scores$cell_2 <- NA
+cell_scores$cell_3 <- NA
+
+
+topMaxUsingFullSort <- function(x, N) {
+  sort(x, decreasing = TRUE)[1:min(N, length(x))]
+}
+
+
+for (i in 1:nrow(cell_scores)) {
+  #print(i)
+  top_3 <- topMaxUsingFullSort(cell_scores[i, 1:20], 3)
+  cell_scores[i, 21] <- top_3[[1]]
+  cell_scores[i, 22] <- top_3[[2]]
+  cell_scores[i, 23] <- top_3[[3]]
+  
+  cell_scores[i, 24] <- colnames(top_3)[1]
+  cell_scores[i, 25] <- colnames(top_3)[2]
+  cell_scores[i, 26] <- colnames(top_3)[3]
+}
+
+write.csv(cell_scores, "results/scores_cells_Dick_top_3_assigned_cells.csv")
+```
+
+```{r}
+cell_scores <- read.csv("results/scores_cells_Dick_top_3_assigned_cells.csv", row.names = 1)
+cell_scores <- cell_scores[,c(21:26)]
+write.csv(cell_scores, "results/scores_cells_Dick_top_3_assigned_cells_scores_only.csv")
+```
+
+
+## assign cells --> min 3 time more than the random
+```{r}
+cell_scores <- read.csv("results/scores_cells_Dick_top_3_assigned_cells_scores_only.csv", row.names = 1)
+
+cell_scores$match <- NA
+cell_scores$match[cell_scores$score_1 > 2] <- "ok"
+table(cell_scores$match)
+
+cell_scores$regex_1 <- cell_scores$cell_1
+cell_scores$regex_1 <- gsub("\\..*", "", cell_scores$regex_1)
+
+cell_scores$regex_2 <- cell_scores$cell_2
+cell_scores$regex_2 <- gsub("\\..*", "", cell_scores$regex_2)
+
+cell_scores$match[cell_scores$regex_1 == cell_scores$regex_2 & cell_scores$score_1 > 3] <- "db"
+
+cell_scores$score_2[cell_scores$match == "db" & !is.na(cell_scores$match)] <- cell_scores$score_3[cell_scores$match == "db" & !is.na(cell_scores$match)]
+
+cell_scores$diff <- cell_scores$score_1 - cell_scores$score_2
+
+cell_scores$match[cell_scores$diff < 0.5] <- "mix"
+cell_scores$match[cell_scores$diff > 0.5 &  cell_scores$score_1 > 3] <- "ok"
+table(cell_scores$match)
+
+cell_scores$cell_1[cell_scores$match != "ok"] <- NA
+
+cell_scores$cell_1[cell_scores$score_1 < 2] <- NA
+
+cell_scores$cell_1 <- gsub("\\.Top.*", "", cell_scores$cell_1)
+
+table(cell_scores$match)
+
+table(cell_scores$cell_1)
+```
+
+```{r}
+data@meta.data$cell_1 <- cell_scores$cell_1
+```
+
+```{r}
+data@meta.data$cell_1[data@meta.data$cell_1 == "Myeloid" & !is.na(data@meta.data$cell_1) ] <- paste0("Ctrl.", data@meta.data$cell_1[data@meta.data$cell_1 == "Myeloid" & !is.na(data@meta.data$cell_1) ] )
+
+data@meta.data$cell_1[data@meta.data$cell_1 == "GMP" & !is.na(data@meta.data$cell_1) ] <- paste0("Ctrl.", data@meta.data$cell_1[data@meta.data$cell_1 == "GMP" & !is.na(data@meta.data$cell_1) ] )
+
+data@meta.data$cell_1[data@meta.data$cell_1 == "HSC_Prog" & !is.na(data@meta.data$cell_1) ] <- paste0("Ctrl.", data@meta.data$cell_1[data@meta.data$cell_1 == "HSC_Prog" & !is.na(data@meta.data$cell_1) ] )
+```
+
+```{r}
+
+col_cells <- c(RColorBrewer::brewer.pal(12,'Paired'), "#d2d5d9")
+```
+
+```{r}
+data@meta.data$cell_1[is.na(data@meta.data$cell_1)] <- "Unassigned"
+```
+
+```{r}
+
+```
+, pt.size = 0.75
+```{r}
+DimPlot(data, reduction = "umap", group.by = "cell_1", cols = c(alpha(col_cells[-13], 1), alpha(col_cells[13], 0.1)))+ ggplot2::theme(legend.position = "none")
+ggsave(paste0("results/figures/score_plot_new_cells_V4.pdf"), width = 4, height = 4)
+ggsave(paste0("results/figures/score_plot_new_cells_V4.png"), width = 4, height = 4)
+```
+
+## calculate factors for each cell
+```{r}
+#' Perform survival analysis for each MOFA factor
+#'
+#' @param file variable containing file
+#' @param name name of the file
+#' @param destination destination folder for file
+scores_factor <- function(fname, txn, genes){
+  myFactor1=RNAfac[RNAfac$factor==fname,]
+  p1=c(1:nrow(myFactor1)) # for coefficients
+  
+  if(genes == "genes"){
+    myFactor1$feature <- myFactor1$label
+  }
+  
+  pick=txn$stable_id %in% myFactor1$feature[p1]
+  #print(pick)
+  mygex1=txn[pick,drop=FALSE,]
+  rownames(mygex1) <- mygex1$stable_id
+  mygex1=data.frame(t(mygex1[,colnames(mygex1) != "stable_id"]))
+  x=as.matrix(mygex1)
+  #print(dim(x))
+  
+  beta=myFactor1$value[match(colnames(x),myFactor1$feature)]
+  beta[is.na(beta)] <- 0
+  yval=t(t(x) * beta)
+  yval=rowSums(yval)
+  
+  weight <- data.frame(yval)
+  colnames(weight) <- fname
+  weight$patient_id <- rownames(weight)
+  
+  yval <- data.frame(patient_id = names(yval), score = yval)
+  yval$group <- as.integer(yval$score > median(yval$score))+1
+  return(yval)
+}
+```
+
+```{r}
+gex <- as.data.frame(data@assays$RNA@data)
+gex$stable_id <- rownames(gex)
+#gex$stable_id <- gsub("\\..*", "", gex$stable_id)
+#gex <- aggregate(. ~ stable_id, data = gex, sum)
+#rownames(gex) <- gex$stable_id
+```
+
+### import factors data
+```{r}
+RNA_factors=NULL
+for (i in 1:11){
+  factorName=paste0("Factor",i,"_RNAseq")
+  cat(factorName," ")
+  dat=read_excel(path_factors,sheet=factorName)
+  dat=data.table(dat)
+  print(nrow(dat))
+  RNA_factors[[i]]=dat
+}
+
+RNAfac=do.call(rbind,RNA_factors)
+RNAfac$feature=gsub(".g","",RNAfac$feature)
+
+## set thresholds for each factor
+factorNames=unique(RNAfac$factor)
+topGeneThres=c(9,10,2,6,4,1,2,3,3,6,3)
+names(topGeneThres)=factorNames
+```
+
+```{r}
+table_scores <- data.frame(patient_id = colnames(gex))
+
+for (factor in factorNames){
+  print(factor)
+  scores_F <- scores_factor(factor, gex, "genes")
+  table_scores <- merge(table_scores, scores_F, by = "patient_id")
+}
+
+colnames(table_scores)[-1] <- paste0("Factor_", rep(1:11,each = 2), "_",colnames(table_scores)[-1])
+colnames(table_scores) <- gsub("\\..*", "", colnames(table_scores))
+colnames(table_scores)[1] <- "Cell"
+```
+
+```{r}
+data@meta.data <- cbind(data@meta.data, table_scores)
+```
+
+```{r}
+colnames(data@meta.data)[seq(73,93, 2)]
+```
+
+```{r}
+write.csv(data@meta.data, "results/scores_cells_and_factors_CITE_seq.csv")
+```
+
+# Plot scores
+```{r}
+for(i in seq(73,93, 2)){
+  print(colnames(data@meta.data)[i])
+  FeaturePlot(data,
+            features = colnames(data@meta.data)[i], label = FALSE, repel = TRUE) +
+            scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu")))+ ggplot2::theme(legend.position = "none")
+  
+  ggsave(paste0("results/figures/score_plot_", colnames(data@meta.data)[i],"_scores_MOFA.pdf"), width = 4, height = 4)
+  ggsave(paste0("results/figures/score_plot_", colnames(data@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
+}
+
+```
+
+
+```{r}
+cells <- data@meta.data[!is.na(data@meta.data$cell_1), ]
+cells$cell_1 <- as.vector(cells$cell_1)
+x <- table(cells$cell_1) > 50
+x <- names(x)[x == TRUE]
+```
+
+```{r}
+cells <- data@meta.data[data@meta.data$cell_1 %in% x, ]
+cells$cell_1 <- as.vector(cells$cell_1)
+table(cells$cell_1)
+```
+
+```{r}
+write.csv(data@meta.data, "results/scores_cells_and_factors_CITE_seq_clean.csv")
+```
+
+
+```{r}
+my_comparisons <- list(c("LSPC.Cycle", "LSPC.Quiescent"), c("cDC.like", "GMP.like."), c("cDC.like", "LSPC.Quiescent"), c("GMP.like", "LSPC.Cycle"), c("GMP.like", "LSPC.Quiescent"), c("cDC.like", "LSPC.Cycle"))
+
+for (i in seq(73,93, 2)) {
+  print(colnames(cells)[i])
+  gg <- ggplot(cells, aes(y=cells[,i], x=cell_1, fill = cell_1)) + 
+  geom_boxplot()+theme(legend.position = "none")+ 
+  stat_compare_means(comparisons = my_comparisons)+theme_classic()+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave(paste0("results/figures/boxplots_cell_types_", colnames(cells)[i],".pdf"), height = 6, width = 8)
+ggsave(paste0("results/figures/boxplots_cell_types_", colnames(cells)[i],".png"), height = 6, width = 8)
+gg
+}
+```
+
+```{r}
+cells <- cells[cells$cell_1 != "Unassigned",]
+colnames(cells)[seq(73,93, 2)] <- gsub("Factor_", "DDHM", colnames(cells)[seq(73,93, 2)])
+colnames(cells)[seq(73,93, 2)] <- gsub("_score", "", colnames(cells)[seq(73,93, 2)])
+```
+
+```{r}
+cells[,seq(73,93, 2)] <- scale(cells[,seq(73,93, 2)] )
+```
+
+```{r}
+column_ha <- HeatmapAnnotation(cell_type = cells$cell_1)
+
+pdf("results/figures/heatmap_factors_scaled_cell_types_clustering.pdf")
+Heatmap(t(cells[,seq(73,93, 2)]), show_row_names = TRUE, show_column_names = FALSE, row_title_rot = 0, top_annotation = column_ha)
+dev.off()
+```
+
+```{r}
+pdf("results/figures/heatmap_factors_scaled_cell_types.pdf")
+Heatmap(cells[,seq(73,93, 2)], row_split = cells$cell_1, show_row_names = FALSE, row_title_rot = 0)
+dev.off()
+```
+
+genes --> 17867
+
+Seurat_3.2.2
+
+R 3.6
+
+
+```{r}
+data_adt <- data@assays$ADT@scale.data
+```
+
+```{r}
+write.csv(data_adt, "results/data_ADT_cell_markers_norm.csv")
+```
+
+
+```{r}
+saveRDS(data, file = "/home/flora.mikaeloff/data/data/scRNAseq/Wells_combined_sctransformed_with_Dick_cell_types.rds")
+```
+
+
+```{r}
+sessionInfo()
+```
+
