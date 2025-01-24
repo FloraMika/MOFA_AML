@@ -38,6 +38,8 @@ Analyses can be reproduced using the different R codes available in the src fold
 NB: MOFA model and CITE-seq analyses were performed on the vale server https://vale.scilifelab.se/ using R v3.6.0, MOFA2 v0.99.7, Seurat v3.2.2 to keep the original analysis.
 All downstream analyses were done using R v4.4.2.
 
+Model details are available online at https://leukemia.scilifelab.se
+
 ## Authors
 - [Flora Mikaeloff](https://github.com/FloraMika)
 - Tojo James
