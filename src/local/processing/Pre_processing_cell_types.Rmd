@@ -1,0 +1,122 @@
+---
+title: "Parse GMT file"
+output: html_notebook
+---
+
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
+```
+
+
+### set up librairies
+```{r}
+library(stringr)
+```
+
+from GMT files
+--> binary matrix : genes as colnames and pathways as rownames
+
+### make gs file
+```{r}
+geneset <- read.delim("/home/flomik/Code/MOFA_AML/data/Genes_sets/Cell_types/Dick/AMLCellType_Genesets.gmt.txt", col.names = FALSE, sep = ",")
+```
+
+```{r}
+total_genes <- c()
+
+gs <- list()
+for (i in 1:nrow(geneset)) {
+  line <- geneset[i,1]
+  path <- gsub("\t.*", "", line)
+  genes <- gsub(path, "", line)
+  genes <- gsub("\t\t", "", genes)
+  genes <- str_split(genes, "\t")
+  genes <- genes[[1]]
+  genes <- genes[!duplicated(genes)]
+  gs[[path]] <- genes
+  total_genes <- c(total_genes, genes)
+  print(path)
+}
+total_genes <- total_genes[!duplicated(total_genes)]
+total_path <- gsub("\t.*", "", geneset$FALSE.)
+```
+
+```{r}
+table_genes <- data.frame(matrix(0, length(total_genes), length(total_path)))
+colnames(table_genes) <- total_path
+rownames(table_genes) <- total_genes
+```
+
+```{r}
+gs[[2]] %in% rownames(table_genes)
+```
+
+
+```{r}
+for (i in 1:length(gs)) {
+  path <- names(gs)[i]
+  genes <- gs[[i]]
+  table_genes[rownames(table_genes) %in% genes, colnames(table_genes) == path] <- 1
+  print(length(gs[[i]]))
+  print(length(table_genes[rownames(table_genes) %in% genes, colnames(table_genes) == path]))
+}
+```
+
+```{r}
+write.csv(t(table_genes), "processing/cell_types_Johon_Dick_matrix_file.csv")
+```
+
+```{r}
+cell_types <- read.csv("processing/cell_types_Johon_Dick_matrix_file.csv", row.names =  1)
+cell_types <- data.frame(t(cell_types))
+cell_types$Genes <- rownames(cell_types)
+cell_types$ID <- mapIds(org.Hs.eg.db, cell_types$Genes, keytype="SYMBOL", column= "ENSEMBL")
+print(nrow(cell_types))
+cell_types <- cell_types[!duplicated(cell_types$ID),]
+cell_types <- cell_types[!is.na(cell_types$ID),]
+rownames(cell_types) <- cell_types$ID
+cell_types$ID <- NULL
+#cell_types$Genes <- NULL
+#print(nrow(cell_types))
+#rownames(cell_types) <- paste0(rownames(cell_types), ".p")
+#cell_types <- t(cell_types)
+```
+
+```{r}
+monocytes <- read.xlsx("/home/flomik/Code/MOFA_AML/data/Genes_sets/Cell_types/Villani/aah4573_supplementary_tables_1-16.xlsx", 5)
+monocytes <- monocytes[,c(1, 8)]
+colnames(monocytes) <- c("Genes", "Cell_type")
+monocytes <- monocytes[-1,]
+monocytes <- monocytes[!is.na(monocytes$Cell_type),]
+monocytes$Value <- 1
+monocytes <- dcast(monocytes, Genes ~ Cell_type, value.var="Value")
+monocytes[is.na(monocytes)] <- 0
+monocytes$Genes <-  mapIds(org.Hs.eg.db, monocytes$Genes, column="ENSEMBL", keytype="SYMBOL")
+monocytes <- monocytes[!is.na(monocytes$Genes),]
+monocytes <- monocytes[!duplicated(monocytes),]
+```
+
+```{r}
+cell_types$Genes <- rownames(cell_types)
+```
+
+```{r}
+cell_types <- merge(cell_types, monocytes, by = "Genes", all.x = TRUE, all.y = TRUE)
+cell_types[is.na(cell_types)] <- 0
+rownames(cell_types) <- cell_types$Genes
+cell_types$Genes <- NULL
+print(nrow(cell_types))
+rownames(cell_types) <- paste0(rownames(cell_types), ".p")
+cell_types <- t(cell_types)
+```
+
+```{r}
+write.csv(cell_types,"processing/cell_types_genes.txt")
+```

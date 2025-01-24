@@ -15,7 +15,35 @@ ipak <- function(pkg){
 }
 
 # usage
-packages <- c("sva","dplyr","pca3d", "affy", "randomForest", "RColorBrewer", "Rtsne")
+packages <- c("MultiAssayExperiment",
+             "MOFA2",
+             "RColorBrewer",
+             "GSEABase",
+             "tidyverse",
+             "minfi",
+             "xlsx",
+             "org.Hs.eg.db",
+             "maditr",
+             "Seurat",
+             "ggpubr",
+             "ComplexHeatmap",
+             "stringr",
+             "readxl",
+             "data.table",
+             "reshape2",
+             "ggplot2",
+             "ggnewscale",
+             "dplyr",
+             "cowplot",
+             "tidyr",
+             "purrr",
+             "survival",
+             "survminer",
+             "smplot2",
+             "gridExtra")
 ipak(packages)
 
 sessionInfo()
+
+
+
