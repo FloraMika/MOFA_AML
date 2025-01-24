@@ -28,7 +28,7 @@ Rscript source/requierements.R
 
 ## Pipeline
 
-![Pipeline](/home/flomik/Code/MOFA_AML/img/MOFA_overview_model_Tojo.pdf)
+![Pipeline](/home/flomik/Code/MOFA_AML/img/#14_venn_diagramm.png)
 
 
 ## AML MOFA model
@@ -36,7 +36,7 @@ Rscript source/requierements.R
 MOFA model can be accessed using the following code. For the installation and use of MOFA2, we recommend looking at the authors website https://biofam.github.io/MOFA2/tutorials.html.
 
 
-![Top weighted features for each data type for 11 hallmarks](/home/flomik/Code/MOFA_AML/img/MOFA_overview_model_Tojo.pdf)
+![Top weighted features for each data type for 11 hallmarks](/home/flomik/Code/MOFA_AML/img/#14_venn_diagramm.png)
 
 ## Authors
 - [Flora Mikaeloff](https://github.com/FloraMika)
