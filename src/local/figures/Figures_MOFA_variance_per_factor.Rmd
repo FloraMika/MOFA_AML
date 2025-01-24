@@ -1,0 +1,50 @@
+---
+title: "Figure variance per factor"
+output: html_notebook
+---
+
+Analysis:
+- Figure variance per factor
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory
+
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML")) 
+```
+
+### load libraries
+```{r}
+library(xlsx)
+library(MOFA2)
+library(ggplot2)
+```
+### factors
+```{r}
+load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+mofa.sel <- select_model(mofa.list)
+```
+
+```{r}
+table_var <- mofa.sel@cache$variance_explained$r2_per_factor$AML
+table_var_2 <- data.frame(rowSums(table_var))
+table_var_2$factor <- paste0("DDHM ", 1:11)
+```
+
+```{r}
+table_var_2$factor <- factor(table_var_2$factor, levels = table_var_2$factor)
+```
+
+```{r}
+write.csv(table_var_2, "results/total_variance_MOFA_figure.csv")
+```
+
+```{r}
+ggplot(data=table_var_2, aes(x=factor, y=rowSums.table_var.)) +
+  geom_bar(stat="identity", width=0.5)+theme_classic()+ylab("Var (%)")+xlab("Hallmark")+ theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+ggsave("results/figures/total_variance_per_factor_MOFA.pdf", width = 4, height = 4)
+```
+
