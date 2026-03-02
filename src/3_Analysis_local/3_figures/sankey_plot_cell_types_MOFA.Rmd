@@ -1,7 +1,6 @@
 ---
 title: "Sankey plot cell types MOFA"
 output:
-  pdf_document: default
   html_notebook: default
 ---
 

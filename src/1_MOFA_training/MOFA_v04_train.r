@@ -23,8 +23,8 @@ library(data.table)
 # they will be automatically filled in when creating the corresponding matrices
 
 # replace by data repository
-file = "/data/MOFA_v04_input.txt"
-data = fread(file)
+load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
+data = MAexp
 
 #######################
 # Create MOFA object ##

@@ -28,9 +28,9 @@ library(cowplot)
 library(RColorBrewer)
 library(ComplexHeatmap)
 ```
-
+## load data
 ```{r}
-data <- read.csv("/home/flomik/Code/MOFA_AML/data/server/scores_cells_and_factors_CITE_seq_clean.csv")
+data <- read.csv("data/server/scores_cells_and_factors_CITE_seq_clean.csv")
 data <- data[data$cell_1 != "Unassigned",]
 table(data$cell_1)
 x <- names(table(data$cell_1))[table(data$cell_1) > 10]

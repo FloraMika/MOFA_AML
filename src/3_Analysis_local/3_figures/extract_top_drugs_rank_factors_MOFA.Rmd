@@ -30,7 +30,7 @@ library("AnnotationDbi")
 
 # Analysis
 
-## load data
+## load data (replace by directory)
 ```{r}
 load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
 ls()
@@ -43,8 +43,8 @@ load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
 
 ## load annotations
 ```{r}
-annot.df <- read.table("/home/flomik/Code/MOFA_AML/data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
-conv <- read.xlsx("/home/flomik/Code/MOFA_AML/data/Drugs/Annotation_curated_DrugBank_ChEMBL_class_revised_2021-10-28.xlsx", 1)
+annot.df <- read.table("data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
+conv <- read.xlsx("data/Drugs/Annotation_curated_DrugBank_ChEMBL_class_revised_2021-10-28.xlsx", 1)
 conv <- conv[,c(1,2, 5)]
 colnames(conv)[1] <- "feature"
 ```

@@ -44,8 +44,13 @@ library(xlsx)
 load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
 ls()
 #source("/home/flomik/Code/Hallmarks_AML/src/functions_Hallmarks.R")
-annot.df <- read.table("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
+
 load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+```
+
+## load annotations
+```{r}
+annot.df <- read.table("data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
 ```
 
 ## Select MOFA object
@@ -55,7 +60,7 @@ mofa.sel <- select_model(mofa.list)
 
 ## extract top features
 ```{r}
-path_factors <- "/home/flomik/Code/MOFA_AML/data/Factors/AML_MOFAplus_top_factors_v04_f600 (1).xlsx"
+path_factors <- "data/Factors/AML_MOFAplus_top_factors_v04_f600 (1).xlsx"
 RNA_factors=NULL
 for (i in 1:11){
   factorName=paste0("Factor",i,"_RNAseq")

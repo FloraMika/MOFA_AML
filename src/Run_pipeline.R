@@ -5,10 +5,14 @@
 ## Input files ##
 ###############
 
-#
-#
-#
-#
+load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
+load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+
+# AML_MAexp_v05.RData : MultiAssayExperiment object with filtered omics and DSRT data
+# MOFA_v04_train_list.RData : MOFA output including MOFA model
+# Wells_combined_sctransformed.rds : Seurat object with CITE-seq data
+# Ensembl2Reactome_All_Levels.txt : GMT file including reactome pathways and associated genes
+# Clinical_mofa_retro.xlsx : dataframe including clinal parameters for retrospective cohort
 
 ###############
 ## Run Pipeline ##

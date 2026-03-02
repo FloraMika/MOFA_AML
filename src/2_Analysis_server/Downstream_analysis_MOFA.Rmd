@@ -54,10 +54,6 @@ clinical_data <- read.xlsx("/home/flomik/Data/MOFA_R_Objects/AML_MOFA_retro_data
 ## pathways
 ensembl.react <- read.table("/home/flomik/Data/MOFA_R_Objects/Ensembl2Reactome_All_Levels.txt", header = F, sep="\t", comment.char ="", quote = "")
 ```
-## load clinical (replace by your repository, ask for access to clinical data)
-```{r}
-
-```
 
 ## load genes markers
 ```{r}
