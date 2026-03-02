@@ -1,6 +1,6 @@
 # MOFA_AML
 
-Code for the paper : Data-driven hallmarks in acute myeloid leukemia: a strategy towards diagnostics and individualized therapy 
+Code for the paper : Data-driven hallmarks reveal actionable disease programs and predict drug sensitivity in acute myeloid leukemia
 
 ## About
 
@@ -24,9 +24,6 @@ Rscript source/requierements.R
 # This command will install the packages necessary for the analysis 
 ```
 
-## Pipeline
-
-
 ## AML MOFA model
 
 MOFA model can be accessed using the following code. For the installation and use of MOFA2, we recommend looking at the authors website https://biofam.github.io/MOFA2/tutorials.html.
@@ -39,6 +36,15 @@ NB: MOFA model and CITE-seq analyses were performed on the vale server https://v
 All downstream analyses were done using R v4.4.2.
 
 Model details are available online at https://leukemia.scilifelab.se
+
+
+## Pipeline
+
+```
+Rscript /home/flomik/Code/MOFA_AML/src/Run_pipeline.R
+# This command will run the whole pipeline 
+```
+
 
 ## Authors
 - [Flora Mikaeloff](https://github.com/FloraMika)
