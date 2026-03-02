@@ -3,6 +3,8 @@ title: "Parse GMT file"
 output: html_notebook
 ---
 
+Analysis :
+Merge markers of AML cells from two publications Dick et al and Villani et al
 
 ### clean environment
 ```{r}

@@ -6,6 +6,14 @@ output: html_notebook
 
 NB: Code was run on the vale server https://vale.scilifelab.se/ using R v3.6.0 and Seurat v3.2.2 to stick to the original analysis.
 
+Analysis
+1. Exploratory analysis : UMAP patients, clusters and normal cell types
+2. Calculate cell type score per cell
+3. Assign AML cell types based on cell markers
+4. Calculate factors scores based on genes expression for each cell
+5. Clustering of cells based on factors and cell types
+6. Extract ADT values for downstream analysis
+
 ### clean environment
 ```{r}
 rm(list=ls())

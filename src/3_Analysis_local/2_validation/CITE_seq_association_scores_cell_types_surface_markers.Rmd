@@ -3,9 +3,11 @@ title: "Downstream analysis CITE-seq"
 output: html_notebook
 ---
 
+Aim : find association between scores, cell types and surface markers
+
 Analysis :
-1. Association factor values and cell types
-2. Association factor values and surface proteins
+1. Association factor scores and cell types (statistics)
+2. Association factor scores and surface proteins
 
 ### clean environment
 ```{r}

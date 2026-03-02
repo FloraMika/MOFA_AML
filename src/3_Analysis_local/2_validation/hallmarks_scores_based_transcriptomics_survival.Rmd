@@ -1,17 +1,19 @@
 ---
-title: "survival analysis MOFA using factors"
+title: "survival analysis MOFA using MOFA scores based on transcriptomics"
 output: html_notebook
 ---
 
+Aim : calculate scores based on transcriptomics and survival analysis between low and high score value 
 
-Analysis:
-1. Survival analysis using Factor 8 (high/low) in swedish cohort
-2. Survival analysis using Factor 8 (high/low) calculated from transcriptomics in swedish cohort
-3. Survival analysis using Factor 8 (high/low) calculated from transcriptomics in BeatAML cohort (chemotherapy)
-4. Survival analysis using Factor 4 (high/low) calculated from transcriptomics in BeatAML cohort (sorafenib)
-5. Survival analysis using Factor 2 (high/low) calculated from transcriptomics in BeatAML cohort (ven+aza)
+Analysis
+1. Calculate factors based on linear combination of top 600 genes for each factor in swedish cohort
+2. Survival analysis using Factor 8 (high/low) in swedish cohort
+3. Survival analysis using Factor 8 (high/low) calculated from transcriptomics in swedish cohort
 
-
+4. Calculate factors based on linear combination of top 600 genes for each factor in BeatAML cohort
+5. Survival analysis using Factor 8 (high/low) calculated from transcriptomics in BeatAML cohort (chemotherapy)
+6. Survival analysis using Factor 4 (high/low) calculated from transcriptomics in BeatAML cohort (sorafenib)
+7. Survival analysis using Factor 2 (high/low) calculated from transcriptomics in BeatAML cohort (ven+aza)
 
 ### clean environment
 ```{r}
