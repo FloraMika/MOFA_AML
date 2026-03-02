@@ -11,8 +11,7 @@ Analysis :
 rm(list=ls())
 ```
 
-### set directory
-
+### set directory (replace by your path)
 ```{r setup}
     knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML")) 
 ```
@@ -152,7 +151,7 @@ pathways$sign[pathways$sign == "pos"] <- 1
 pathways$sign[pathways$sign == "neg"] <- -1
 for (i in 1:11) {
   sub_path <- pathways[pathways$ind == paste0("DDHM", i),]
-  write.xlsx(sub_path, "manuscript/Hallmarks_top_pathways_v2.xlsx", sheetName= paste0("Factor_", i), col.names=TRUE, row.names=FALSE, append=TRUE)
+  #write.xlsx(sub_path, "manuscript/Hallmarks_top_pathways_v3.xlsx", sheetName= paste0("Factor_", i), col.names=TRUE, row.names=FALSE, append=TRUE)
 }
 ```
 

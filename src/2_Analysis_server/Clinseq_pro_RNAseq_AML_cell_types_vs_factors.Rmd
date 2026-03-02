@@ -1,10 +1,12 @@
 ---
-title: "Cite-seq analysis"
+title: "Clinseq Cite-seq analysis"
 output: html_notebook
 ---
 
 
 NB: Code was run on the vale server https://vale.scilifelab.se/ using R v3.6.0 and Seurat v3.2.2 to stick to the original analysis.
+
+Aim : Calculate factor scores based on transcriptomics and compare to AML cell types
 
 Analysis
 1. Exploratory analysis : UMAP patients, clusters and normal cell types
@@ -19,11 +21,10 @@ Analysis
 rm(list=ls())
 ```
 
-### set directory
+### set directory (replace by your path)
 ```{r setup}
-    knitr::opts_knit$set(root.dir = normalizePath("/home/flora.mikaeloff/Projects/Hallmarks/")) 
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML")) 
 ```
-
 
 ```{r}
 library(Seurat)
@@ -36,15 +37,20 @@ library(readxl)
 library(data.table)
 ```
 
+## Load CITE-seq (replace to your data folders)
 ```{r}
-data <- readRDS("/home/flora.mikaeloff/data/data/scRNAseq/Wells_combined_sctransformed.rds")
-path_factors <- "/home/flora.mikaeloff/Projects/Hallmarks/data/AML_MOFAplus_top_factors_v04_f600_2.xlsx"
+data <- readRDS("~/Data/data_francesco/Wells_combined_sctransformed.rds")
+```
+
+## Load material
+```{r}
+path_factors <- "data/AML_MOFAplus_top_factors_v04_f600_2.xlsx"
+geneset <- read.csv("data/Genes_sets/Cell_types/Dick/AMLCellType_Genesets.gmt.txt", header = FALSE) ## Dick et al cell markers
+vangalen <- read.xlsx("data/Genes_sets/Cell_types/Van_Galen/mmc3.xlsx", 1) ## Van Galen et al cell markers
 ```
 
 ## Load markers from Dick et al paper
 ```{r}
-geneset <- read.csv("/home/flora.mikaeloff/Projects/Hallmarks/data/AMLCellType_Genesets.gmt.txt", header = FALSE)
-
 gs <- list()
 for (i in 1:nrow(geneset)) {
   line <- geneset[i,1]
@@ -59,7 +65,6 @@ for (i in 1:nrow(geneset)) {
 
 ## add Van Galen controls
 ```{r}
-vangalen <- read.xlsx("/home/flora.mikaeloff/Projects/Hallmarks/data/Van_Galen_markers/mmc3.xlsx", 1)
 normal_HSC <- as.vector(vangalen$Normal.derived..combined)
 normal_GMP <- as.vector(vangalen$NA..1)
 normal_myeloid <- as.vector(vangalen$NA..2)
@@ -90,6 +95,7 @@ for (i in 1:length(gs)) {
 ```{r}
 print(colnames(data@meta.data)[51:70])
 ```
+
 ```{r}
 colnames(data@meta.data)[51:70] <- gsub("1$", "", colnames(data@meta.data)[51:70])
 ```
@@ -241,10 +247,6 @@ col_cells <- c(RColorBrewer::brewer.pal(12,'Paired'), "#d2d5d9")
 data@meta.data$cell_1[is.na(data@meta.data$cell_1)] <- "Unassigned"
 ```
 
-```{r}
-
-```
-, pt.size = 0.75
 ```{r}
 DimPlot(data, reduction = "umap", group.by = "cell_1", cols = c(alpha(col_cells[-13], 1), alpha(col_cells[13], 0.1)))+ ggplot2::theme(legend.position = "none")
 ggsave(paste0("results/figures/score_plot_new_cells_V4.pdf"), width = 4, height = 4)
@@ -415,13 +417,6 @@ Heatmap(cells[,seq(73,93, 2)], row_split = cells$cell_1, show_row_names = FALSE,
 dev.off()
 ```
 
-genes --> 17867
-
-Seurat_3.2.2
-
-R 3.6
-
-
 ```{r}
 data_adt <- data@assays$ADT@scale.data
 ```
@@ -432,7 +427,7 @@ write.csv(data_adt, "results/data_ADT_cell_markers_norm.csv")
 
 
 ```{r}
-saveRDS(data, file = "/home/flora.mikaeloff/data/data/scRNAseq/Wells_combined_sctransformed_with_Dick_cell_types.rds")
+#saveRDS(data, file = "data/Wells_combined_sctransformed_with_Dick_cell_types.rds")
 ```
 
 

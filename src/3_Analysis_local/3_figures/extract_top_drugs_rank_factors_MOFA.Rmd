@@ -13,7 +13,7 @@ Analysis:
 rm(list=ls())
 ```
 
-### set directory
+### set directory (replace by your path)
 ```{r setup}
     knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
 ```
@@ -23,18 +23,12 @@ library(MOFA2)
 library(RColorBrewer)
 library(GSEABase)
 library(tidyverse)
-#library(minfi)
 library(xlsx)
-#library(org.Hs.eg.db)
 library(maditr)
 library("AnnotationDbi")
 ```
 
 # Analysis
-
-```{r}
-name_ana <- "AML_KI_retrospective"
-```
 
 ## load data
 ```{r}
@@ -42,13 +36,14 @@ load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
 ls()
 ```
 
-## load MOFA object
+## load MOFA object (replace by your repository)
 ```{r}
-annot.df <- read.table("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
 load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
 ```
 
+## load annotations
 ```{r}
+annot.df <- read.table("/home/flomik/Code/MOFA_AML/data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
 conv <- read.xlsx("/home/flomik/Code/MOFA_AML/data/Drugs/Annotation_curated_DrugBank_ChEMBL_class_revised_2021-10-28.xlsx", 1)
 conv <- conv[,c(1,2, 5)]
 colnames(conv)[1] <- "feature"

@@ -10,8 +10,7 @@ Analysis:
 rm(list=ls())
 ```
 
-### set directory
-
+### set directory (replace by your path)
 ```{r setup}
     knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML")) 
 ```
@@ -22,7 +21,8 @@ library(xlsx)
 library(MOFA2)
 library(ggplot2)
 ```
-### factors
+
+### load MOFA object (replace by directory)
 ```{r}
 load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
 mofa.sel <- select_model(mofa.list)

@@ -1,31 +1,20 @@
 ---
-title: "Downstream analysis MOFA"
+title: "Feature selection using MOFA"
 output:
   pdf_document: default
   html_notebook: default
 ---
-
-NB: Code was run on the vale server https://vale.scilifelab.se/ using R v3.6.0 and MOFA2 v0.99.7 to stick to the original analysis.
-
-Aim : Quality check model and enrichment of pathways and cell types
-
-Analysis:
-1. Visualization and model quality
-2. Correlation factors with clinical data
-3. Pathway analysis for each factor
-4. Cell type enrichment for each factor
 
 ### clean environment
 ```{r}
 rm(list=ls())
 ```
 
-### set directory (replace by your repository)
+### set directory
 ```{r setup}
-    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flora.mikaeloff/Projects/Hallmarks/")) 
 ```
 
-### load libraries
 ```{r}
 library(MultiAssayExperiment)
 library(MOFA2)
@@ -36,39 +25,24 @@ library(minfi)
 library(xlsx)
 library(org.Hs.eg.db)
 library(maditr)
-library(psych)
 ```
 
 # Analysis
 
-## load data (replace by your repository)
 ```{r}
-## MOFA
-load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
-load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+name_ana <- "AML_KI_retrospective"
+```
+
+## load data
+```{r}
+load("/home/flora.mikaeloff/Projects/MOFA/MOFA_R_Objects/AML_MAexp_v05.RData")
 ls()
-
-## clinical
-clinical_data <- read.xlsx("/home/flomik/Data/MOFA_R_Objects/AML_MOFA_retro_dataset/Clinical_mofa_retro.xlsx", 1)
-
-## pathways
-ensembl.react <- read.table("/home/flomik/Data/MOFA_R_Objects/Ensembl2Reactome_All_Levels.txt", header = F, sep="\t", comment.char ="", quote = "")
-```
-## load clinical (replace by your repository, ask for access to clinical data)
-```{r}
-
 ```
 
-## load genes markers
+## load MOFA object
 ```{r}
-cells <- read.csv("processing/cell_types_genes.txt", row.names = 1)
-cells <- as.matrix(cells)
-```
-
-
-## load annotations
-```{r}
-annot.df <- read.table("data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
+annot.df <- read.table("/home/flora.mikaeloff/Projects/MOFA/MOFA_R_Objects/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
+load("/home/flora.mikaeloff/Projects/MOFA/MOFA_R_Objects/MOFA_v04_train_list.RData")
 ```
 
 ## Select MOFA object
@@ -83,8 +57,7 @@ pdf("results/figures/MOFA_overview_model_Tojo.pdf")
 plot_data_overview(mofa.sel)
 dev.off()
 ```
-
-## Correlation factors
+## correlation factors
 Verify that the Factors are largely uncorrelated
 ```{r}
 plot_factor_cor(mofa.sel)
@@ -92,7 +65,6 @@ pdf("results/figures/correlation_factors_model_Tojo.pdf")
 plot_factor_cor(mofa.sel)
 dev.off()
 ```
-
 ## variance decomposition by factor
 Percentage of variance explained by each factor across each data modality
 ```{r}
@@ -110,22 +82,28 @@ pdf("results/figures/MOFA_variance_modeL_Tojo_plot_2.pdf")
 plot_variance_explained(mofa.sel, plot_total = T)[[2]]
 dev.off()
 ```
-
-## Checking model / percentage variance per factor
+## checking model / percentage variance per factor
 ```{r}
 mofa.sel@cache
 ```
-
 ```{r}
 colnames(mofa.sel@samples_metadata)
 ```
 
-## filter and order clinical data
+## load clinical
+
 ```{r}
+clinical_data <- read.xlsx("/home/flora.mikaeloff/Projects/MOFA/Clinical_mofa_retro.xlsx", 1)
 clinical_data <- clinical_data[!duplicated(clinical_data$patient_id),]
 names(clinical_data)[1] <- "sample"
 clinical_data$group <- "AML"
+```
+
+```{r}
 table(clinical_data$ELN_2022_AO)
+```
+
+```{r}
 clinical_data <- clinical_data[order(samples_names(mofa.sel)$AML, clinical_data$sample),]
 ```
 
@@ -157,11 +135,10 @@ clinical_data$sample
 ```{r}
 clinical_data$treat_intention <- NULL
 ```
-
-## load ELN2022 (replace by your repository, ask for access to clinical data)
+## Add ELN2022
 ```{r}
-#eln <- read.csv("/home/flomik/Data/MOFA_R_Objects/ELN_2022_AO.csv", sep = ";")
-#colnames(eln)[1] <- "sample"
+eln <- read.csv("/home/flora.mikaeloff/Projects/MOFA/MOFA_R_Objects/ELN_2022_AO.csv", sep = ";")
+colnames(eln)[1] <- "sample"
 #eln$sample
 #clinical_data <- merge(clinical_data, eln, by = "sample", all.x = TRUE)
 #table(clinical_data$ELN_2022_AO.x)
@@ -246,8 +223,10 @@ correlate_factors_with_covariates(mofa.sel,
   plot="log_pval"
 )
 ```
-## Process reactome
+
+## Load reactome
 ```{r}
+ensembl.react <- read.table("/home/flora.mikaeloff/Projects/MOFA/MOFA_R_Objects/Ensembl2Reactome_All_Levels.txt", header = F, sep="\t", comment.char ="", quote = "")
 colnames(ensembl.react) <- c("ensembl.ID", "Path.ID", "URI", "Path.name", "Evidence", "Species")
 ensembl.react <- ensembl.react[ensembl.react$Species=="Homo sapiens",]
 ```
@@ -266,6 +245,21 @@ tmp2 <- annot.df[grepl("^.*\\.p$", annot.df$feature),]
 tmp1 <- as.character(tmp2$feature)[match(tmp1, tmp2$id)]
 tmp1[is.na(tmp1)] <- colnames(ensembl.react.m)[is.na(tmp1)]
 colnames(ensembl.react.m) <- tmp1
+```
+
+
+```{r}
+cells <- read.csv("/home/flora.mikaeloff/Projects/MOFA/cell_types_genes.txt", row.names = 1)
+cells <- as.matrix(cells)
+```
+
+```{r}
+#col <- colorRampPalette(c("grey97","red"))(n = 100)
+#MOFA_object <- mofa.sel
+#sign <- "positive"
+#genes_set <- cells
+#test <- "cor.adj.parametric"
+#view <- "Proteomics"
 ```
 
 ```{r}
@@ -333,7 +327,7 @@ MOFA_GSEA <- function(MOFA_object, sign, test, view, genes_set, col, name){
   #}
   
   dim(p.values)
-  write.csv(p.values, paste0("results/GSEA/GSEA_top_", name, "_", sign,"_", view,"_", test, ".csv"))
+  write.csv(p.values, paste0("results/GSEA_top_", name, "_", sign,"_", view,"_", test, ".csv"))
   return(p.values)
 }
 ```
@@ -382,7 +376,7 @@ print(nrow(cells_neg))
 print(nrow(cells_both))
 ```
 
-## Check correlations factors and genes
+## Really good --> check correlations factors and genes
 ```{r}
 col <- colorRampPalette(c("grey97","red"))(n = 100)
 path_pos <- MOFA_GSEA(mofa.sel, "positive", "cor.adj.parametric", "Proteomics", ensembl.react.m, col, "reactome_path")
@@ -403,4 +397,33 @@ print(nrow(cells_pos))
 print(nrow(cells_neg))
 print(nrow(cells_both))
 ```
+
+## RNA
+```{r}
+#colnames(ensembl.react.m) <- gsub(".p", ".g", colnames(ensembl.react.m))
+#colnames(cells) <- gsub(".p", ".g", colnames(cells))
+```
+
+
+```{r}
+#col <- colorRampPalette(c("grey97","red"))(n = 100)
+#path_pos <- MOFA_GSEA(mofa.sel, "positive", "cor.adj.parametric", "RNAseq", ensembl.react.m, col)
+#cells_pos <- MOFA_GSEA(mofa.sel, "positive", "cor.adj.parametric", "RNAseq", cells, col)
+
+#col <- colorRampPalette(c("grey97","#0000FF"))(n = 200)
+#path_neg <- MOFA_GSEA(mofa.sel, "negative", "cor.adj.parametric", "RNAseq", ensembl.react.m, col)
+#cells_neg <- MOFA_GSEA(mofa.sel, "negative", "cor.adj.parametric", "RNAseq", cells, col)
+
+#path_both <- MOFA_GSEA(mofa.sel, "all", "cor.adj.parametric", "RNAseq", ensembl.react.m, col)
+#cells_both <- MOFA_GSEA(mofa.sel, "all", "cor.adj.parametric", "RNAseq", cells, col)
+
+#print(ncol(path_pos))
+#print(ncol(path_neg))
+#print(ncol(path_both))
+
+#print(ncol(cells_pos))
+#print(ncol(cells_neg))
+#print(ncol(cells_both))
+```
+
 

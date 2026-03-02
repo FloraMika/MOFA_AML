@@ -11,7 +11,7 @@ Merge markers of AML cells from two publications Dick et al and Villani et al
 rm(list=ls())
 ```
 
-### set directory
+### set directory (replace by your repository)
 ```{r setup}
     knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
 ```
@@ -20,6 +20,9 @@ rm(list=ls())
 ### set up librairies
 ```{r}
 library(stringr)
+library(mygene)
+library(org.Hs.eg.db)
+library(xlsx)
 ```
 
 from GMT files
@@ -27,7 +30,7 @@ from GMT files
 
 ### make gs file
 ```{r}
-geneset <- read.delim("/home/flomik/Code/MOFA_AML/data/Genes_sets/Cell_types/Dick/AMLCellType_Genesets.gmt.txt", col.names = FALSE, sep = ",")
+geneset <- read.delim("data/Genes_sets/Cell_types/Dick/AMLCellType_Genesets.gmt.txt", col.names = FALSE, sep = ",")
 ```
 
 ```{r}
@@ -92,7 +95,7 @@ cell_types$ID <- NULL
 ```
 
 ```{r}
-monocytes <- read.xlsx("/home/flomik/Code/MOFA_AML/data/Genes_sets/Cell_types/Villani/aah4573_supplementary_tables_1-16.xlsx", 5)
+monocytes <- read.xlsx("data/Genes_sets/Cell_types/Villani/aah4573_supplementary_tables_1-16.xlsx", 5)
 monocytes <- monocytes[,c(1, 8)]
 colnames(monocytes) <- c("Genes", "Cell_type")
 monocytes <- monocytes[-1,]

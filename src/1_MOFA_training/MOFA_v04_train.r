@@ -22,6 +22,7 @@ library(data.table)
 # In this case there is no need to have missing values in the data.frame,
 # they will be automatically filled in when creating the corresponding matrices
 
+# replace by data repository
 file = "/data/MOFA_v04_input.txt"
 data = fread(file)
 

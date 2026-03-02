@@ -10,8 +10,7 @@ output:
 rm(list=ls())
 ```
 
-### set directory
-
+### set directory (replace by your path)
 ```{r setup}
     knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML")) 
 ```
@@ -26,17 +25,14 @@ library(minfi)
 library(xlsx)
 library(org.Hs.eg.db)
 library(maditr)
+library(ggalluvial)
 ```
 
 # Analysis
 
-```{r}
-name_ana <- "AML_KI_retrospective"
-```
-
 ## load cell types
 ```{r}
-cells <- read.csv("/home/flomik/Code/Hallmarks_AML/processing/cell_types_genes.txt", row.names = 1)
+cells <- read.csv("processing/cell_types_genes.txt", row.names = 1)
 cells <- data.frame(t(cells))
 cells$Genes <- rownames(cells)
 ```
@@ -44,14 +40,14 @@ cells$Genes <- rownames(cells)
 
 ## load enrichment pvalues
 ```{r}
-cell_neg <- read.csv("/home/flomik/Code/MOFA_AML/data/server/cell_types_top_pathways_tojo_negative.csv", row.names = 1)
+cell_neg <- read.csv("data/server/cell_types_top_pathways_tojo_negative.csv", row.names = 1)
 row_names <- rownames(cell_neg)
 cell_neg_2  <- stack(cell_neg)
 cell_neg_2$ind_2 <- rep(row_names, ncol(cell_neg))
 cell_neg_2$sign <- "neg"
 cell_neg_2$type <- "cell-factor"
 
-cell_pos <- read.csv("/home/flomik/Code/MOFA_AML/data/server/cell_types_top_pathways_tojo_positive.csv", row.names = 1)
+cell_pos <- read.csv("data/server/cell_types_top_pathways_tojo_positive.csv", row.names = 1)
 row_names <- rownames(cell_pos)
 cell_pos_2  <- stack(cell_pos)
 cell_pos_2$ind_2 <- rep(row_names, ncol(cell_pos))
@@ -74,11 +70,6 @@ cell_type_filt <- cell_type[!grepl("100", cell_type$ind_2),]
 ```{r}
 cell_type_filt$Pathway <- as.vector(cell_type_filt$ind_2)
 cell_type_filt$Pathway <- gsub("\\.Top250", "", cell_type_filt$Pathway)
-```
-
-
-```{r}
-library(ggalluvial)
 ```
 
 ```{r}
@@ -148,18 +139,6 @@ for (i in 1:11) {
 }
 ```
 
-
-data$Freq[data$ind == "DDHM1"] <- 0.5
-data$Freq[data$ind == "DDHM2"] <- 0.5
-data$Freq[data$ind == "DDHM6"] <- 0.5
-data$Freq[data$ind == "DDHM7"] <- 0.5
-
-
-data$Freq[data$ind == "DDHM9"] <- 2
-data$Freq[data$ind == "DDHM10"] <- 2
-data$Freq[data$ind == "DDHM11"] <- 2
-
-
 ```{r}
 ggplot(data = data,
        aes(axis1 = Cell_N, axis2 = ind,
@@ -171,7 +150,7 @@ ggplot(data = data,
   scale_fill_manual(values =  col_mofa[c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11)], na.value="00FFFFFF")
 
 ggsave("results/figures/sankey_plot_cell_types_N_Tojo_corrected.png", width = 7, height = 5)
-ggsave("results/figures/sankey_plot_cell_types_N_Tojo_corrected.pdf", width = 7, height = 5)
+#ggsave("results/figures/sankey_plot_cell_types_N_Tojo_corrected.pdf", width = 7, height = 5)
 ```
 
 ```{r}
@@ -185,6 +164,6 @@ ggplot(data = data,
   scale_fill_manual(values =  col_mofa[c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10 , 11)], na.value="00FFFFFF")
 
 ggsave("results/figures/sankey_plot_cell_types_P_Tojo_corrected.png", width = 7, height = 5)
-ggsave("results/figures/sankey_plot_cell_types_P_Tojo_corrected.pdf", width = 7, height = 5)
+#ggsave("results/figures/sankey_plot_cell_types_P_Tojo_corrected.pdf", width = 7, height = 5)
 ```
 
