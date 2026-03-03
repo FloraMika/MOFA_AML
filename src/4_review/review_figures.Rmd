@@ -1,0 +1,166 @@
+---
+title: "Review MOFA paper"
+output: html_notebook
+---
+
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory
+
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML")) 
+```
+
+1. Correlation factor vs modalities
+Mutations - factor 1
+DSRT - factor 2
+Proteomics - factor 2
+Methylation - factor 1 and 3
+
+```{r}
+library(MOFA2)
+library(data.table)
+library(readxl)
+library(ggplot2)
+library(survival)
+library(survminer)
+library("smplot2")
+library(MultiAssayExperiment)
+library(gridExtra)
+library(xlsx)
+```
+
+## load data
+```{r}
+load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
+ls()
+#source("/home/flomik/Code/Hallmarks_AML/src/functions_Hallmarks.R")
+
+load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+```
+
+## load annotations
+```{r}
+annot.df <- read.table("data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
+```
+
+## Select MOFA object
+```{r}
+mofa.sel <- select_model(mofa.list)
+```
+
+
+```{r}
+
+```
+
+
+
+
+## make list combination
+```{r}
+comb <- list(c("Proteomics", "Factor1"),
+             c("Mutations", "Factor1"),
+             c("DSRT", "Factor2"),
+             c("DNAm", "Factor1"),
+             c("DNAm", "Factor3"))
+```
+
+
+```{r}
+path_factors <- "data/MOFA/AML_MOFAplus_top_factors_v04_f600 (1).xlsx"
+table_score <- data.frame(patient_id = mofa.sel@samples_metadata$sample)
+
+for(i in comb){
+  mod <- i[1]
+  fact <- i[2]
+  print(c(fact,mod))
+  
+  ## extract top features for specific factor
+  factorName=paste0(fact,"_", mod)
+  RNAfac=read_excel(path_factors,sheet=factorName)
+  RNAfac=data.table(RNAfac)
+  RNAfac$feature <- gsub("\\..", "", RNAfac$feature)
+  RNAfac$feature[RNAfac$feature == "FIMM000406IMM000173"] <- "FIMM000406.FIMM000173"
+  print(nrow(RNAfac))
+  
+  ## select data
+  data <- data.frame(mofa.sel@data[mod][[1]]$AML)
+  emptycols <- sapply(data, function (k) all(is.na(k)))
+  data <- data[!emptycols]
+  rownames(data) <- gsub("\\..", "", rownames(data))
+  rownames(data)[rownames(data) == "FIMM000406IMM000173"] <- "FIMM000406.FIMM000173"
+  condition <- data.frame(patient_id = colnames(data))
+  
+  ## calculate score per patient
+  pick <- rownames(data) %in% RNAfac$feature
+  x=t(data[pick,drop=FALSE,])
+  beta <- RNAfac$value[match(colnames(x), RNAfac$feature)]
+  yval=t(t(x) * beta)
+  yval=rowSums(yval)
+  weight <- data.frame(yval)
+  colnames(weight) <- fact
+  weight$patient_id <- rownames(weight)
+  yval <- data.frame(patient_id = names(yval), score = yval)
+  yval$group <- as.integer(yval$score > median(yval$score))+1
+  colnames(yval)[2:3] <- paste0(mod,"_",fact, "_", colnames(yval)[2:3])
+  condition <- merge(condition, yval, by = "patient_id")
+  table_score <- merge(table_score, condition, all.x = TRUE)
+}
+```
+
+## extract DDHM values
+```{r}
+factors <- read_xlsx("/home/flomik/Code/MOFA_AML/data/MOFA/DDHMpatValue.xlsx")
+patients <- factors$patient_id
+rownames(factors) <- factors$patient_id
+factors$sample <- NULL
+factors$patient_id <- NULL
+factors <- data.frame(lapply(factors, as.numeric))
+factors$patient_id <- patients
+colnames(factors) <- gsub("DDHM", "Factor", colnames(factors))
+data <- merge(factors, table_score, by = "patient_id")
+```
+```{r}
+col <- c("#584588",
+"#4076A9",
+"#ABCADA",
+"#BED797",
+"#5E9F48",
+"#F1EFB3",
+"#EEC17F",
+"#E88840",
+"#E99D9B",
+"#CE3D31",
+"#BCB2C9")
+```
+
+
+
+```{r}
+myplots <- vector('list', length(comb))
+
+for (i in comb) {
+  mod <- i[1]
+  fact <- i[2]
+  color <- col[as.numeric(gsub("Factor", "", fact))]
+  name <- gsub("Factor", "DDHM", fact)
+  print(c(fact, mod))
+  data_sub <- data[, grepl(mod, colnames(data)) & grepl(fact, colnames(data)) | colnames(data) == fact]
+  
+  a <- ggplot(data = data_sub, mapping = aes(x = data_sub[, 1], y =data_sub[, 2])) +
+          geom_point(size = 1) + xlab(paste(name, "(MOFA)")) + ylab(paste(name, "(score", mod, ")")) +
+  geom_smooth(method=lm, level=0.95, colour = color, fill = color, alpha=0.25, se = T, show.legend = F)+
+  theme_light()+
+          sm_statCorr(corr_method = "spearman", size = 0.1, label_x = 1) +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+                                      text=element_text(family="Helvetica", size=12))+ylim(c(min(data_sub[, 2]), max(data_sub[, 2]) +0.5))
+  
+  ggsave(paste0("results/figures/correlation_hallmarks_", fact, "_", mod, ".pdf"))
+  print(a)
+}
+```
