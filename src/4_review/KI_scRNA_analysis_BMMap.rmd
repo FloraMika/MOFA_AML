@@ -1,0 +1,289 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+Process :
+1. Assign cells with BMMap (CellType_Broad)
+NB : run BMMap with raw counts
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
+```
+
+```{r}
+library(BoneMarrowMap)
+library(Seurat)
+library(dplyr)
+library(ggplot2)
+library(readxl)
+library(data.table)
+```
+
+## Load Symphony reference
+```{r}
+ref <- readRDS("~/Data/CITE_seq/BoneMarrowMap-main/BoneMarrowMap_SymphonyReference.rds")
+ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap-main/", 'BoneMarrowMap_uwot_model.uwot')
+```
+
+## load seurat object
+```{r}
+data <- readRDS("/home/flomik/Data/Clinseq/CITE_seq/Wells_combined_sctransformed.rds")
+data
+```
+
+## assign AML cell types to cells
+```{r}
+batchvar <- "PatientLevel"
+# Map query dataset using Symphony (Kang et al 2021)
+query <- map_Query(
+    exp_query = LayerData(data, assay = "RNA", layer = "counts"), 
+    metadata_query = data@meta.data,
+    ref_obj = ref,
+    vars = batchvar
+    )
+
+ncol(query)
+```
+
+# Run QC based on mapping error score, flag cells with mapping error >= 2.5 MADs above median
+query <- query %>% calculate_MappingError(., reference = ref, MAD_threshold = 2.5) 
+
+# Get QC Plots
+QC_plots <- plot_MappingErrorQC(query)
+
+# Plot together - If this is too crowded, can also just call "QC_plots" aloneto display one by one
+patchwork::wrap_plots(QC_plots, ncol = 4, widths = c(0.8, 0.3, 0.8, 0.3))
+
+## filter out low quality cells
+```{r}
+# Run QC based on mapping error score, flag cells with mapping error >= 2.5 MADs above median
+query <- query %>% calculate_MappingError(., reference = ref, MAD_threshold = 2.5)
+
+# Get QC Plots
+QC_plots <- plot_MappingErrorQC(query)
+
+# Plot together - If this is too crowded, can also just call "QC_plots" aloneto display one by one
+patchwork::wrap_plots(QC_plots, ncol = 4, widths = c(0.8, 0.3, 0.8, 0.3))
+
+# # Optional step - remove outliers with high mapping error
+query <- subset(query, mapping_error_QC == 'Pass')
+
+ncol(query)
+nrow(query)
+```
+
+HSC MPP — #E8A020 (medium orange)
+LMPP — #F5C842 (golden yellow)
+Cycling Progenitor — #F5E070 (pale yellow)
+Early GMP — #FAEFC0 (very pale yellow/cream)
+Megakaryo-Erythroid lineage
+
+MEP — #8B0000 (dark red / burgundy)
+Megakaryocyte Precursor — #CC2200 (strong red)
+Early Erythroid — #E8604A (salmon-red)
+Late Erythroid — #F0A090 (light salmon/pink)
+Innate myeloid cells
+
+EoBasoMast Precursor — #1A3A6B (dark navy blue)
+Pro-Monocyte — #2E6FAD (medium-dark blue)
+Monocyte — #4A9FD4 (medium blue)
+cDC — #7DC0E8 (light-medium blue)
+pDC — #AADDF5 (pale blue)
+Stromal — #D0EEF8 (very pale blue)
+Lymphoid lineage
+
+Early Lymphoid — #1A1A1A (near black)
+Pro-B — #505050 (dark grey)
+Pre-B — #787878 (medium grey)
+B — #A0A0A0 (medium-light grey)
+Plasma_Cell — #C8C8C8 (light grey)
+NK — #E8E8E8 (very light grey)
+
+```{r}
+col <- c("#A0A0A0", # B
+         "#BAE4B3", # CD4 T
+         "#74C476", # CD8 T
+         "#7DC0E8", # cDC
+         "#F5E070", # Cycling Progenitor
+         "#E8604A", # Early Erythroid
+         "#FAEFC0", # Early GMP
+         "#1A1A1A", # Early Lymphoid
+         "#1A3A6B", # EoBasoMast Precursor
+         "#E8A020", # HSC MPP
+         "#F0A090", # Late Erythroid
+         "#f7e391", # Late GMP
+         "#F5C842", # LMPP
+         "#CC2200", # Megakaryocyte Precursor
+         "#8B0000", # MEP 
+         "#4A9FD4", # Monocyte
+         "#EDF8E9", # Naive T
+         "#E8E8E8", # NK
+         "#AADDF5", # pDC
+         "#C8C8C8", # Plasma_Cell
+         "#787878", # Pre-B
+         "#505050", # Pro-B
+         "#2E6FAD", # Pro-Monocyte
+         "#D0EEF8" # Stromal
+         )
+```
+
+
+
+## Predict Hematopoietic Cell Types by KNN classification
+```{r}
+query <- predict_CellTypes(
+  query_obj = query, 
+  ref_obj = ref, 
+  initial_label = 'initial_CellType', # celltype assignments before filtering on mapping QC
+  final_label = 'predicted_CellType'  # celltype assignments with map QC failing cells assigned as NA
+)
+```
+
+
+```{r}
+DimPlot(query, reduction = 'umap_projected', group.by = c('predicted_CellType_Broad'), 
+        raster=FALSE, label=FALSE, label.size = 4, cols = col) + xlab("UMAP 1")+ylab("UMAP 2")
+
+ggsave(paste0("results/figures/scRNA/KI/score_plot_predicted_cell_types_BMmap_prospective_KI.pdf"), width = 9, height = 4)
+```
+
+```{r}
+# Predict Pseudotime values by KNN
+query <- predict_Pseudotime(
+  query_obj = query, 
+  ref_obj = ref, 
+  initial_label = 'initial_Pseudotime',  # pseudotime assignments before filtering on mapping QC
+  final_label = 'predicted_Pseudotime'   # pseudotime assignments with map QC failing cells assigned as NA
+)
+
+# Visualize Hematopoietic Pseudotime in query data
+FeaturePlot(query, features = c('predicted_Pseudotime'))
+
+ggsave(paste0("results/figures/scRNA/KI/score_plot_predicted_pseudotime_BMmap_prospective_KI.pdf"), width = 5, height = 3.5)
+```
+## calculate factors for each cell
+```{r}
+#' Perform survival analysis for each MOFA factor
+#'
+#' @param file variable containing file
+#' @param name name of the file
+#' @param destination destination folder for file
+scores_factor <- function(fname, txn, genes){
+  myFactor1=RNAfac[RNAfac$factor==fname,]
+  p1=c(1:nrow(myFactor1)) # for coefficients
+  
+  if(genes == "genes"){
+    myFactor1$feature <- myFactor1$label
+  }
+  
+  pick=txn$stable_id %in% myFactor1$feature[p1]
+  #print(pick)
+  mygex1=txn[pick,drop=FALSE,]
+  rownames(mygex1) <- mygex1$stable_id
+  mygex1=data.frame(t(mygex1[,colnames(mygex1) != "stable_id"]))
+  x=as.matrix(mygex1)
+  #print(dim(x))
+  
+  beta=myFactor1$value[match(colnames(x),myFactor1$feature)]
+  beta[is.na(beta)] <- 0
+  yval=t(t(x) * beta)
+  yval=rowSums(yval)
+  
+  weight <- data.frame(yval)
+  colnames(weight) <- fname
+  weight$patient_id <- rownames(weight)
+  
+  yval <- data.frame(patient_id = names(yval), score = yval)
+  yval$group <- as.integer(yval$score > median(yval$score))+1
+  return(yval)
+}
+```
+
+```{r}
+gex <- as.data.frame(query@assays$RNA$scale.data)
+gex$stable_id <- rownames(gex)
+#gex$stable_id <- gsub("\\..*", "", gex$stable_id)
+#gex <- aggregate(. ~ stable_id, data = gex, sum)
+#rownames(gex) <- gex$stable_id
+```
+
+### import factors data
+```{r}
+path_factors <- "data/MOFA/AML_MOFAplus_top_factors_v04_f600 (1).xlsx"
+
+RNA_factors=NULL
+for (i in 1:11){
+  factorName=paste0("Factor",i,"_RNAseq")
+  cat(factorName," ")
+  dat=read_excel(path_factors,sheet=factorName)
+  dat=data.table(dat)
+  print(nrow(dat))
+  RNA_factors[[i]]=dat
+}
+
+RNAfac=do.call(rbind,RNA_factors)
+RNAfac$feature=gsub(".g","",RNAfac$feature)
+
+## set thresholds for each factor
+factorNames=unique(RNAfac$factor)
+topGeneThres=c(9,10,2,6,4,1,2,3,3,6,3)
+names(topGeneThres)=factorNames
+```
+
+```{r}
+table_scores <- data.frame(patient_id = colnames(gex))
+
+for (factor in factorNames){
+  print(factor)
+  scores_F <- scores_factor(factor, gex, "genes")
+  table_scores <- merge(table_scores, scores_F, by = "patient_id")
+}
+
+colnames(table_scores)[-1] <- paste0("Factor_", rep(1:11, each = 2), "_",colnames(table_scores)[-1])
+colnames(table_scores) <- gsub("\\..*", "", colnames(table_scores))
+colnames(table_scores)[1] <- "Cell"
+```
+
+```{r}
+query@meta.data <- cbind(query@meta.data, table_scores)
+```
+
+```{r}
+colnames(query@meta.data)[seq(62,83, 2)]
+```
+
+```{r}
+write.csv(table_scores, "results/scores_cells_and_factors_CITE_seq_KI_prospective.csv")
+```
+
+# Visualize Hematopoietic Pseudotime in query data
+
+```{r}
+library(RColorBrewer)
+```
+
+```{r}
+rev(brewer.pal(n = 11, name = "RdBu"))
+```
+
+
+# Plot scores
+```{r}
+for(i in seq(62,83, 2)){
+  print(colnames(query@meta.data)[i])
+   FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) +
+            #scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu"))) #+ ggplot2::theme(legend.position = "none")
+            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
+  ggsave(paste0("results/figures/scRNA/KI/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.pdf"), width = 5, height = 3.5)
+  #ggsave(paste0("results/figures/scRNA_2/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
+}
+
+```
