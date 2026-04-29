@@ -25,6 +25,7 @@ library(data.table)
 # replace by data repository
 load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
 data = MAexp
+MAexp@ExperimentList
 
 #######################
 # Create MOFA object ##

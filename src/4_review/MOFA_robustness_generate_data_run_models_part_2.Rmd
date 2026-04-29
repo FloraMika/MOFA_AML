@@ -1,0 +1,214 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+1. Compare ELBO (Evidence Lower Bound) == DONE
+
+2. Run alternative MOFA models trained on random subsets of decreasing sample sizes (i.e., 90%, 80%, 70%, 60%, and 50%). preserving omics proportions. Each threshold was repeated 5 times with different random seed.
+
+3. 50-50 % split
+Train non-overlapping donor sets, training independent MOFA models on each, and correlating the feature weights across matching factors (also 15 random splits). Results were similar to those from 50% vs. the full model, suggesting that the conserved factors are not driven by individual-specific data 
+
+4. samples with increasing numbers of omics layers (i.e., subsets with at least 2, 3, or 4 omics layers)
+
+list_datasets[[i]] <- data_sub
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory (replace by your repository)
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
+```
+
+
+```{r}
+library(MultiAssayExperiment)
+library(MOFA2)
+library(dplyr)
+```
+
+## load data
+```{r}
+load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+mofa.sel <- select_model(mofa.list)
+
+
+data_2 <- list(
+  Methylation = mofa.sel@data$DNAm$AML, 
+  DSRT = mofa.sel@data$DSRT$AML,
+  Mutations =mofa.sel@data$Mutations$AML,
+  Proteins = mofa.sel@data$Proteomics$AML,
+  Genes = mofa.sel@data$RNAseq$AML
+  )
+
+colnames(data_2$DSRT) == colnames(data_2$Genes)
+```
+
+```{r}
+a <-colSums(is.na(data_2$DSRT)) != nrow(data_2$DSRT)
+b <-colSums(is.na(data_2$Genes)) != nrow(data_2$Genes)
+c <-colSums(is.na(data_2$Mutations)) != nrow(data_2$Mutations)
+d <-colSums(is.na(data_2$Methylation)) != nrow(data_2$Methylation)
+e <-colSums(is.na(data_2$Proteins)) != nrow(data_2$Proteins)
+
+table_missing <- rbind(a, b, c, d, e)
+table_missing <- 1*table_missing
+
+rownames(table_missing) <- c("DSRT", "Genes", "Mutations", "Methylation", "Proteins")
+
+table_missing <- data.frame(table_missing)
+
+table_missing$percentage <- as.vector(rowSums(table_missing)/118)
+```
+
+```{r}
+per <- c(0.5)
+name <- c("50")
+
+x <- sample(colnames(table_missing)[table_missing[1,] == 1], length(colnames(table_missing)[table_missing[1,] == 1])*per)
+length(x)
+x_2 <- colnames(table_missing)[table_missing[1,] == 1 & !colnames(table_missing) %in% x]
+length(x_2)
+
+y <- sample(colnames(table_missing)[table_missing[1,] == 0], length(colnames(table_missing)[table_missing[1,] == 0])*per)
+length(y)
+y_2 <- colnames(table_missing)[table_missing[1,] == 0 & !colnames(table_missing) %in% y]
+length(y_2)
+
+table_missing_2 <- table_missing[, colnames(table_missing) %in% c(x, y)]
+
+data_sub_1 <- list(
+    DSRT = mofa.sel@data$DSRT$AML[, colnames(mofa.sel@data$DSRT$AML) %in% colnames(table_missing_2)],
+    Genes = mofa.sel@data$RNAseq$AML[, colnames(mofa.sel@data$RNAseq$AML) %in% colnames(table_missing_2)],
+    Mutations =mofa.sel@data$Mutations$AML[, colnames(mofa.sel@data$Mutations$AML) %in% colnames(table_missing_2)],
+    Methylation = mofa.sel@data$DNAm$AML[, colnames(mofa.sel@data$DNAm$AML) %in% colnames(table_missing_2)], 
+    Proteins = mofa.sel@data$Proteomics$AML[, colnames(mofa.sel@data$Proteomics$AML) %in% colnames(table_missing_2)])
+  
+   colnames(data_sub_1$DSRT) == colnames(data_sub_1$Genes)
+   saveRDS(data_sub_1, paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/v1_independant_50_data_input_MOFA.rds"))
+   
+   
+table_missing_3 <- table_missing[, colnames(table_missing) %in% c(x_2, y_2)]
+
+data_sub_2 <- list(
+    DSRT = mofa.sel@data$DSRT$AML[, colnames(mofa.sel@data$DSRT$AML) %in% colnames(table_missing_3)],
+    Genes = mofa.sel@data$RNAseq$AML[, colnames(mofa.sel@data$RNAseq$AML) %in% colnames(table_missing_3)],
+    Mutations =mofa.sel@data$Mutations$AML[, colnames(mofa.sel@data$Mutations$AML) %in% colnames(table_missing_3)],
+    Methylation = mofa.sel@data$DNAm$AML[, colnames(mofa.sel@data$DNAm$AML) %in% colnames(table_missing_3)], 
+    Proteins = mofa.sel@data$Proteomics$AML[, colnames(mofa.sel@data$Proteomics$AML) %in% colnames(table_missing_3)])
+  
+   colnames(data_sub_2$DSRT) == colnames(data_sub_2$Genes)
+   saveRDS(data_sub_2, paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/v2_independant_50_data_input_MOFA.rds"))
+  
+colnames(data_sub_1$DSRT) == colnames(data_sub_2$DSRT)
+```
+
+```{r}
+list_datasets <- list()
+list_datasets[[1]] <- data_sub_1
+list_datasets[[2]] <- data_sub_2
+
+name <- c("v1_independant_50","v2_independant_50", "Methylation", "DSRT", "Mutations","Proteins", "Genes", ">5",">4")
+```
+
+## remove 1 omics layer one by one
+```{r}
+for (i in 3:7) {
+  name_ana <- name[i]
+  print(name_ana)
+  data_3 <- data_2
+  data_3[[name_ana]][!is.na(data_3[[name_ana]])] <- NA
+  list_datasets[[i]] <- data_3
+}
+```
+
+## increasing numbers of omics layers (i.e., subsets with at least 2, 3, or 4 omics layers), and by completely removing one omics layer (i.e., setting ‘NA’ to all features of the removed layer)
+```{r}
+Methylation_names = colnames(mofa.sel@data$DNAm$AML)[colSums(is.na(mofa.sel@data$DNAm$AML)) < 5000]
+Genes_names = colnames(mofa.sel@data$RNAseq$AML)[colSums(is.na(mofa.sel@data$RNAseq$AML)) < 5000]
+Proteins_names = colnames(mofa.sel@data$Proteomics$AML)[colSums(is.na(mofa.sel@data$Proteomics$AML)) < 1]
+Mutations_names = colnames(mofa.sel@data$Mutations$AML)[colSums(is.na(mofa.sel@data$Mutations$AML)) < 1]
+DSRT_names = colnames(mofa.sel@data$DSRT$AML)[colSums(is.na(mofa.sel@data$DSRT$AML)) < 528]
+
+data_3 <- data_2
+data_3$Methylation <- data_3$Methylation[ ,colnames(data_3$Methylation) %in% DSRT_names]
+data_3$DSRT <- data_3$DSRT[ ,colnames(data_3$DSRT) %in% DSRT_names]
+data_3$Genes <- data_3$Genes[,colnames(data_3$Genes) %in% DSRT_names]
+data_3$Mutations <- data_3$Mutations[ ,colnames(data_3$Mutations) %in% DSRT_names]
+data_3$Proteins <- data_3$Proteins[ ,colnames(data_3$Proteins) %in% DSRT_names]
+
+list_datasets[[8]] <- data_3
+
+data_3 <- data_2
+data_3$Methylation <- data_3$Methylation[ ,colnames(data_3$Methylation) %in% Methylation_names]
+data_3$DSRT <- data_3$DSRT[ ,colnames(data_3$DSRT) %in% Methylation_names]
+data_3$Genes <- data_3$Genes[,colnames(data_3$Genes) %in% Methylation_names]
+data_3$Mutations <- data_3$Mutations[ ,colnames(data_3$Mutations) %in% Methylation_names]
+data_3$Proteins <- data_3$Proteins[ ,colnames(data_3$Proteins) %in% Methylation_names]
+
+list_datasets[[9]] <- data_3
+
+```
+
+```{r}
+#' Run MOFA by francesco
+#'
+#' @param data MultiAssayExperiment object
+#' @param name title of analysis
+#' @return mofa object
+#' @export
+MOFA_fran <- function(data, name_ana){
+  ## create model
+  MOFAobject <- create_mofa(data)
+  ## set parameters
+  data_opts <- get_default_data_options(MOFAobject)
+  data_opts$scale_views <- T
+  model_opts <- get_default_model_options(MOFAobject)
+  model_opts$num_factors <- 15
+  model_opts$likelihoods <-  c("gaussian","gaussian","bernoulli","gaussian","gaussian")
+  ## run model
+  set.seed(12345)
+  seeds <- floor(10^7*runif(5))
+
+  mofa.list <- list()
+  
+  for(i in 1:5){
+    # Training options
+    # - maxiter: number of iterations
+    # - convergence_mode: "fast", "medium", "slow". For exploration, the fast mode is good enough.
+    # - startELBO: initial iteration to compute the ELBO (the objective function used to assess convergence)
+    # - freqELBO: frequency of computations of the ELBO (the objective function used to assess convergence)
+    # - drop_factor_threshold: minimum variance explained criteria to drop factors while training. Default is -1 (no dropping of factors)
+    # - gpu_mode: use GPU mode? This needs cupy installed and a functional GPU, see https://cupy.chainer.org/
+    # - verbose: verbose mode?
+    # - seed: random seed
+    train_opts <- get_default_training_options(MOFAobject)
+    train_opts$convergence_mode <- "slow"
+    train_opts$drop_factor_threshold <- 0.02
+    train_opts$maxiter <- 10000
+    train_opts$seed <- seeds[i]
+    
+    mofa.toTrain <- prepare_mofa(MOFAobject,
+                               data_options = data_opts,
+                               model_options = model_opts,
+                               training_options = train_opts )
+      outfile <- paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/", name_ana, "_MOFA.hdf5")
+      mofa.list[[i]] <- run_mofa(mofa.toTrain, outfile, use_basilisk = T)
+      mofa.sel <- select_model(mofa.list)
+    }
+  #saveRDS(mofa.sel, file=paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/", name, "_MOFA.rds"))
+  return(mofa.sel)
+}
+```
+
+
+```{r}
+for (j in 3:9) {
+  data <- MOFA_fran(list_datasets[[j]], name[[j]])
+}
+```
+
