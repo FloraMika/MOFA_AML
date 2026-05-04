@@ -113,7 +113,7 @@ grid_plot
                            list_plots[[13]], list_plots[[14]], 
                           ncol = 3)
  g
-ggsave("results/figures/summary_robstness_mofa_model.pdf", g, width = 6, height = 8)
+ggsave("results/figures/summary_robstness_mofa_model.pdf", g, width = 6, height = 10.5)
 
 ```
 
