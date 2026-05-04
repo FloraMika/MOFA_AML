@@ -149,7 +149,6 @@ MOFA_fran <- function(data, name_ana){
       mofa.list[[i]] <- run_mofa(mofa.toTrain, outfile, use_basilisk = T)
       mofa.sel <- select_model(mofa.list)
     }
-  #saveRDS(mofa.sel, file=paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/", name, "_MOFA.rds"))
   return(mofa.sel)
 }
 ```

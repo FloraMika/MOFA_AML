@@ -207,7 +207,7 @@ MOFA_fran <- function(data, name_ana){
 
 
 ```{r}
-for (j in 3:9) {
+for (j in 1:2) {
   data <- MOFA_fran(list_datasets[[j]], name[[j]])
 }
 ```
