@@ -65,7 +65,7 @@ for (i in 1:9) {
   correlation_2$value <- abs(correlation_2$value)
   correlation_2 <- correlation_2[order(correlation_2$value),]
   correlation_2$comparison <- factor(correlation_2$comparison, levels = correlation_2$comparison)
-  
+  print(mean(correlation_2$value))
   p<-ggplot(data=correlation_2, aes(x=value, y=comparison)) +
   geom_bar(stat="identity")+ theme_classic()+xlab("Features weights correlation coefficient")+ylab("")
   p
