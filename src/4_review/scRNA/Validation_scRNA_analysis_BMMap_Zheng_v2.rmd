@@ -29,19 +29,18 @@ library(data.table)
 
 ## Load Symphony reference
 ```{r}
-#ref <- readRDS("~/Data/CITE_seq/BoneMarrowMap-main/BoneMarrowMap_SymphonyReference.rds")
-#ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap-main/", 'BoneMarrowMap_uwot_model.uwot')
+ref <- readRDS("~/Data/CITE_seq/BoneMarrowMap-main/BoneMarrowMap_SymphonyReference.rds")
+ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap-main/", 'BoneMarrowMap_uwot_model.uwot')
 ```
 
 ## load seurat object
 ```{r}
-query <- readRDS("/home/flomik/Data/external_data_sets/scRNA/Zheng/scAML_Zeng_2025_projected_cleaned.rds")
+query <- readRDS("/home/flomik/Data/external_data_sets/BMmap/scAML_Zeng_2025_projected_cleaned.rds")
 query
 ```
 
-
+```{r}
 ## filter out low quality cells
-
 # Run QC based on mapping error score, flag cells with mapping error >= 2.5 MADs above median
 query <- query %>% calculate_MappingError(., reference = ref, MAD_threshold = 2.5)
 
@@ -49,13 +48,14 @@ query <- query %>% calculate_MappingError(., reference = ref, MAD_threshold = 2.
 QC_plots <- plot_MappingErrorQC(query)
 
 # Plot together - If this is too crowded, can also just call "QC_plots" aloneto display one by one
-patchwork::wrap_plots(QC_plots, ncol = 4, widths = c(0.8, 0.3, 0.8, 0.3))
+#patchwork::wrap_plots(QC_plots, ncol = 4, widths = c(0.8, 0.3, 0.8, 0.3))
 
 # # Optional step - remove outliers with high mapping error
 query <- subset(query, mapping_error_QC == 'Pass')
 
 ncol(query)
 nrow(query)
+```
 
 
 HSC MPP — #E8A020 (medium orange)
@@ -84,6 +84,7 @@ Pre-B — #787878 (medium grey)
 B — #A0A0A0 (medium-light grey)
 Plasma_Cell — #C8C8C8 (light grey)
 NK — #E8E8E8 (very light grey)
+
 
 ```{r}
 col <- c("#A0A0A0", # B
@@ -115,16 +116,40 @@ col <- c("#A0A0A0", # B
 ```
 
 
+MLL_28824 -> AEL
+MLL_28855 -> AEL
+```{r}
+samples <- c("MLL_14666",
+"MLL_16703",
+"MLL_17746",
+"MLL_17843",
+"MLL_17844",
+"MLL_28830",
+"MLL_29512",
+"MLL_29532",
+"MLL_29538",
+"MLL_30862",
+"MLL_30886")
+```
+
+## remove allographs, CD4 and APL samples
+```{r}
+Idents(query) <- "Sample"
+all_samples <- factor(query$Sample)
+levels(all_samples)
+
+query <- subset(query, idents = samples)
+```
 
 ## Predict Hematopoietic Cell Types by KNN classification
-
+```{r}
 query <- predict_CellTypes(
   query_obj = query, 
   ref_obj = ref, 
   initial_label = 'initial_CellType', # celltype assignments before filtering on mapping QC
   final_label = 'predicted_CellType'  # celltype assignments with map QC failing cells assigned as NA
-#)
-
+  )
+```
 
 # UMAP
 ```{r}
@@ -142,11 +167,11 @@ query <- predict_Pseudotime(
   final_label = 'predicted_Pseudotime'   # pseudotime assignments with map QC failing cells assigned as NA
 )
 
-```{r}
 # Visualize Hematopoietic Pseudotime in query data
 FeaturePlot(query, features = c('predicted_Pseudotime'))
 ggsave(paste0("results/figures/scRNA/Zheng/score_plot_predicted_pseudotime_BMmap_prospective_Zheng.pdf"), width = 5, height = 3.5)
-```
+
+
 ## calculate factors for each cell
 ```{r}
 #' Perform survival analysis for each MOFA factor
@@ -234,6 +259,11 @@ query@meta.data <- cbind(query@meta.data, table_scores)
 ```
 
 ```{r}
+saveRDS(query, "/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_Zheng_with_scores_v2.rds")
+```
+
+
+```{r}
 colnames(query@meta.data)[seq(37,58, 2)]
 ```
 
@@ -251,14 +281,13 @@ library(RColorBrewer)
 rev(brewer.pal(n = 11, name = "RdBu"))
 ```
 
-
 # Plot scores
 ```{r}
 for(i in seq(37,58, 2)){
   print(colnames(query@meta.data)[i])
-   FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) #+
+   FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) +
             #scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu"))) #+ ggplot2::theme(legend.position = "none")
-            #scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
+            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
   ggsave(paste0("results/figures/scRNA/Zheng/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.pdf"), width = 5, height = 3.5)
   #ggsave(paste0("results/figures/scRNAZheng/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
 }

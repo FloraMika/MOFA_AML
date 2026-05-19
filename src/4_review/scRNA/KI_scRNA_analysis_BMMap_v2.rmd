@@ -29,16 +29,17 @@ library(data.table)
 
 ## Load Symphony reference
 ```{r}
-#ref <- readRDS("~/Data/CITE_seq/BoneMarrowMap-main/BoneMarrowMap_SymphonyReference.rds")
-ref <- readRDS("/home/flomik/Data/CITE_seq/BoneMarrowMap/BoneMarrowMap_SymphonyReference.rds")
-#ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap-main/", 'BoneMarrowMap_uwot_model.uwot')
-ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap/", 'BoneMarrowMap_uwot_model.uwot')
+ref <- readRDS("~/Data/CITE_seq/BoneMarrowMap-main/BoneMarrowMap_SymphonyReference.rds")
+#ref <- readRDS("/home/flomik/Data/CITE_seq/BoneMarrowMap/BoneMarrowMap_SymphonyReference.rds")
+ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap-main/", 'BoneMarrowMap_uwot_model.uwot')
+#ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap/", 'BoneMarrowMap_uwot_model.uwot')
 ```
 
 
 ## load seurat object
 ```{r}
-data <- readRDS("/home/flomik/Data/CITE_seq/Wells_combined_sctransformed.rds")
+#data <- readRDS("/home/flomik/Data/CITE_seq/Wells_combined_sctransformed.rds")
+data <- readRDS("/home/flomik/Data/Clinseq/CITE_seq/Wells_combined_sctransformed.rds")
 data
 ```
 
@@ -286,7 +287,10 @@ library(RColorBrewer)
 ```{r}
 rev(brewer.pal(n = 11, name = "RdBu"))
 ```
+## change signs scores
+```{r}
 
+```
 
 # Plot scores
 ```{r}
@@ -298,5 +302,4 @@ for(i in seq(62,83, 2)){
   ggsave(paste0("results/figures/scRNA/KI/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.pdf"), width = 5, height = 3.5)
   #ggsave(paste0("results/figures/scRNA_2/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
 }
-
 ```

@@ -3,16 +3,8 @@ title: "R Notebook"
 output: html_notebook
 ---
 
-Change sign figures :
-1. Pharmacoproteomic cohort: DDHM2 (fig s3a ) x 
-
-DDHM cohort:
-2. DDHM8 (transcriptome only) fig s6a x
-3. DDHM4 (transcriptome only) fig s6b x
-
-Check sign single cell :
-*The problem with the single cells data is that i can not see which ones has flipped and which ones that has not without more information e.g, expression of top positive features showing the same pattern as the projected DDHM score. This may mean that the cell type association with the single cell data may be the reversed
-
+Check sign single cell
+- show top gene for each factor
 
 ### clean environment
 ```{r}
@@ -28,7 +20,16 @@ rm(list=ls())
 library("readxl")
 library("data.table")
 library(dplyr)
+library(Seurat)
+library(ggplot2)
 ```
+
+## load object
+```{r}
+data <- readRDS("/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_with_scores_v2.rds")
+data
+```
+
 
 ## extract top feature per factor
 ```{r}
@@ -52,21 +53,93 @@ names(topGeneThres)=factorNames
 ```
 
 ```{r}
-BMmap_scores_scRNA <- read.csv("results/scores_cells_and_factors_CITE_seq_KI_prospective.csv")
+BMmap_scores_scRNA <- read.csv("~/Code/MOFA_AML/results/scores_cells_and_factors_CITE_seq_KI_prospective.csv")
 ```
 
 ```{r}
+list_genes_top <- list()
+
 for (i in 1:11) {
   score_name <- paste0("Factor_", i,"_score")
   score <- BMmap_scores_scRNA[, colnames(BMmap_scores_scRNA) == score_name]
   sheet <- RNA_factors[[i]]
   pos <- sheet[sheet$sign == "+",]
   pos <- pos[order(pos$value, decreasing = TRUE),]
-  top_feat <- pos$label[1]
+  top_feat <- pos$label[1:5]
+  print(top_feat)
+  list_genes_top[[i]] <- top_feat
+}
+```
+
+## c
+```{r}
+for(i in 1:length(list_genes_top)){
+  list_genes <- list_genes_top[[i]]
+  print(list_genes)
+  feat <- c(list_genes, paste0("Factor_", i, "_score"))
+   FeaturePlot(data, features = feat, label = FALSE, repel = TRUE) +
+            #scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu"))) #+ ggplot2::theme(legend.position = "none")
+            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
+  ggsave(paste0("results/figures/scRNA/KI/review_score_plot_top_genes_pos_Factor_", i,"_scores_MOFA_positive.pdf"), width = 7, height = 5)
+  #ggsave(paste0("results/figures/scRNA_2/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
 }
 ```
 
 ```{r}
-top_n(sheet, 1)
+list_genes_top <- list()
+
+for (i in 1:11) {
+  score_name <- paste0("Factor_", i,"_score")
+  score <- BMmap_scores_scRNA[, colnames(BMmap_scores_scRNA) == score_name]
+  sheet <- RNA_factors[[i]]
+  pos <- sheet[sheet$sign == "-",]
+  pos <- pos[order(pos$value, decreasing = TRUE),]
+  top_feat <- pos$label[1:5]
+  print(top_feat)
+  list_genes_top[[i]] <- top_feat
+}
 ```
 
+## c
+```{r}
+for(i in 1:length(list_genes_top)){
+  list_genes <- list_genes_top[[i]]
+  print(list_genes)
+  feat <- c(list_genes, paste0("Factor_", i, "_score"))
+   FeaturePlot(data, features = feat, label = FALSE, repel = TRUE) +
+            #scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu"))) #+ ggplot2::theme(legend.position = "none")
+            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
+  ggsave(paste0("results/figures/scRNA/KI/review_score_plot_top_genes_pos_Factor_", i,"_scores_MOFA_negative.pdf"), width = 7, height = 5)
+  #ggsave(paste0("results/figures/scRNA_2/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
+}
+```
+
+## change sign
+```{r}
+data$Factor_4_score <- -1*data$Factor_4_score
+data$Factor_5_score <- -1*data$Factor_5_score
+data$Factor_8_score <- -1*data$Factor_8_score
+```
+
+```{r}
+FeaturePlot(data, features = "Factor_4_score", label = FALSE, repel = TRUE) +
+            #scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu"))) #+ ggplot2::theme(legend.position = "none")
+            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
+  ggsave(paste0("results/figures/scRNA/KI/review_score_plot_top_genes_pos_Factor_4_scores_MOFA_new_sign.pdf"), width = 7, height = 5)
+```
+
+```{r}
+FeaturePlot(data, features = "Factor_5_score", label = FALSE, repel = TRUE) +
+            #scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu"))) #+ ggplot2::theme(legend.position = "none")
+            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
+  ggsave(paste0("results/figures/scRNA/KI/review_score_plot_top_genes_pos_Factor_5_scores_MOFA_new_sign.pdf"), width = 7, height = 5)
+```
+
+
+```{r}
+FeaturePlot(data, features = "Factor_8_score", label = FALSE, repel = TRUE) +
+            #scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu"))) #+ ggplot2::theme(legend.position = "none")
+            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
+  ggsave(paste0("results/figures/scRNA/KI/review_score_plot_top_genes_pos_Factor_8_scores_MOFA_new_sign.pdf"), width = 7, height = 5)
+```
+  

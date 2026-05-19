@@ -1,0 +1,111 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+1. Compare ELBO (Evidence Lower Bound) == DONE
+
+2. Run alternative MOFA models trained on random subsets of decreasing sample sizes (i.e., 90%, 80%, 70%, 60%, and 50%). preserving omics proportions. Each threshold was repeated 5 times with different random seed.
+
+3. 50-50 % split
+Train non-overlapping donor sets, training independent MOFA models on each, and correlating the feature weights across matching factors (also 15 random splits). Results were similar to those from 50% vs. the full model, suggesting that the conserved factors are not driven by individual-specific data 
+
+4. samples with increasing numbers of omics layers (i.e., subsets with at least 2, 3, or 4 omics layers)
+
+list_datasets[[i]] <- data_sub
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory (replace by your repository)
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
+```
+
+
+```{r}
+library(MultiAssayExperiment)
+library(MOFA2)
+library(dplyr)
+```
+
+## load data
+```{r}
+load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+mofa.sel <- select_model(mofa.list)
+```
+
+```{r}
+name <- c("v1_independant_50","v2_independant_50", "Methylation", "DSRT", "Mutations","Proteins", "Genes", ">5",">4")
+```
+
+```{r}
+weights_main <- get_weights(mofa.sel, views = "all", factors = "all")
+weights_main_2 <- rbind(weights_main$DNAm, weights_main$DSRT, weights_main$Mutations, weights_main$Proteomics, weights_main$RNAseq)
+```
+
+```{r}
+for (i in 1:9) {
+  filepath <- paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/", name[i], "_MOFA.hdf5")
+  model_comp <- load_model(filepath)
+  weights_comp <- get_weights(model_comp, views = "all", factors = "all")
+  weights_comp_2 <- rbind(weights_comp$Methylation, weights_comp$DSRT, weights_comp$Mutations, weights_comp$Proteins, weights_comp$Genes)
+  print(name[i])
+  print(ncol(weights_comp_2))
+  correlation <- cor(weights_main_2, weights_comp_2, method = 'pearson')
+  max_values <- c(colMaxs(abs(correlation)), -colMaxs(abs(correlation)))
+  correlation[!correlation %in% c(max_values)] <- 0
+
+  correlation_2 <- melt(correlation)
+
+  correlation_2 <- correlation_2[correlation_2$value != 0,]
+  colnames(correlation_2)[1:2] <- c("main", "comparison")
+  correlation_2$value <- abs(correlation_2$value)
+  correlation_2 <- correlation_2[order(correlation_2$value),]
+  correlation_2$comparison <- factor(correlation_2$comparison, levels = correlation_2$comparison)
+  print(mean(correlation_2$value))
+  p<-ggplot(data=correlation_2, aes(x=value, y=comparison)) +
+  geom_bar(stat="identity")+ theme_classic()+xlab("Features weights correlation coefficient")+ylab("")
+  p
+  ggsave(paste0("results/figures/MOFA/correlation_plots_MOFA_", name[i],".pdf"))
+}
+```
+
+
+1.extract weights per sample
+2. find matched factors between main model and submodel = best-matching approach based on correlation of feature loadings
+3. calculate coefficient correlation (Pearson for each factor and each view)
+4. Make plot
+
+```{r}
+correlation <- cor(weights_main_2, weights_comp_2, method = 'pearson')
+max_values <- c(colMaxs(abs(correlation)), -colMaxs(abs(correlation)))
+#correlation_test <- correlation
+#correlation_test[correlation_test %in% max_values] <- 0
+#max_values_2 <-colMaxs(correlation_test)
+
+#rownames(weights_main$DSRT) == rownames(weights_comp$DSRT)
+#correlation[!correlation %in% c(max_values, max_values_2)] <- 0
+correlation[!correlation %in% c(max_values)] <- 0
+
+correlation_2 <- melt(correlation)
+
+correlation_2 <- correlation_2[correlation_2$value != 0,]
+colnames(correlation_2)[1:2] <- c("main", "comparison")
+correlation_2$value <- abs(correlation_2$value)
+correlation_2 <- correlation_2[order(correlation_2$value),]
+correlation_2$comparison <- factor(correlation_2$comparison, levels = correlation_2$comparison)
+```
+
+```{r}
+library(ggplot2)
+
+p<-ggplot(data=correlation_2, aes(x=value, y=comparison)) +
+  geom_bar(stat="identity")
+p
+   
+```
+
+
