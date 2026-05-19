@@ -29,13 +29,16 @@ library(data.table)
 
 ## Load Symphony reference
 ```{r}
-ref <- readRDS("~/Data/CITE_seq/BoneMarrowMap-main/BoneMarrowMap_SymphonyReference.rds")
-ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap-main/", 'BoneMarrowMap_uwot_model.uwot')
+#ref <- readRDS("~/Data/CITE_seq/BoneMarrowMap-main/BoneMarrowMap_SymphonyReference.rds")
+ref <- readRDS("/home/flomik/Data/CITE_seq/BoneMarrowMap/BoneMarrowMap_SymphonyReference.rds")
+#ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap-main/", 'BoneMarrowMap_uwot_model.uwot')
+ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap/", 'BoneMarrowMap_uwot_model.uwot')
 ```
+
 
 ## load seurat object
 ```{r}
-data <- readRDS("/home/flomik/Data/Clinseq/CITE_seq/Wells_combined_sctransformed.rds")
+data <- readRDS("/home/flomik/Data/CITE_seq/Wells_combined_sctransformed.rds")
 data
 ```
 

@@ -29,41 +29,19 @@ library(data.table)
 
 ## Load Symphony reference
 ```{r}
-ref <- readRDS("~/Data/CITE_seq/BoneMarrowMap-main/BoneMarrowMap_SymphonyReference.rds")
-ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap-main/", 'BoneMarrowMap_uwot_model.uwot')
+#ref <- readRDS("~/Data/CITE_seq/BoneMarrowMap-main/BoneMarrowMap_SymphonyReference.rds")
+#ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap-main/", 'BoneMarrowMap_uwot_model.uwot')
 ```
 
 ## load seurat object
 ```{r}
-data <- readRDS("/home/flomik/Data/Clinseq/CITE_seq/Wells_combined_sctransformed.rds")
-data
+query <- readRDS("/home/flomik/Data/external_data_sets/scRNA/Zheng/scAML_Zeng_2025_projected_cleaned.rds")
+query
 ```
 
-## assign AML cell types to cells
-```{r}
-batchvar <- "PatientLevel"
-# Map query dataset using Symphony (Kang et al 2021)
-query <- map_Query(
-    exp_query = LayerData(data, assay = "RNA", layer = "counts"), 
-    metadata_query = data@meta.data,
-    ref_obj = ref,
-    vars = batchvar
-    )
-
-ncol(query)
-```
-
-# Run QC based on mapping error score, flag cells with mapping error >= 2.5 MADs above median
-query <- query %>% calculate_MappingError(., reference = ref, MAD_threshold = 2.5) 
-
-# Get QC Plots
-QC_plots <- plot_MappingErrorQC(query)
-
-# Plot together - If this is too crowded, can also just call "QC_plots" aloneto display one by one
-patchwork::wrap_plots(QC_plots, ncol = 4, widths = c(0.8, 0.3, 0.8, 0.3))
 
 ## filter out low quality cells
-```{r}
+
 # Run QC based on mapping error score, flag cells with mapping error >= 2.5 MADs above median
 query <- query %>% calculate_MappingError(., reference = ref, MAD_threshold = 2.5)
 
@@ -78,7 +56,7 @@ query <- subset(query, mapping_error_QC == 'Pass')
 
 ncol(query)
 nrow(query)
-```
+
 
 HSC MPP — #E8A020 (medium orange)
 LMPP — #F5C842 (golden yellow)
@@ -131,29 +109,30 @@ col <- c("#A0A0A0", # B
          "#787878", # Pre-B
          "#505050", # Pro-B
          "#2E6FAD", # Pro-Monocyte
-         "#D0EEF8" # Stromal
+         "#D0EEF8", # Stromal
+         "pink"
          )
 ```
 
 
 
 ## Predict Hematopoietic Cell Types by KNN classification
-```{r}
+
 query <- predict_CellTypes(
   query_obj = query, 
   ref_obj = ref, 
   initial_label = 'initial_CellType', # celltype assignments before filtering on mapping QC
   final_label = 'predicted_CellType'  # celltype assignments with map QC failing cells assigned as NA
-)
-```
+#)
 
 
+# UMAP
 ```{r}
-DimPlot(query, reduction = 'umap_projected', group.by = c('predicted_CellType_Broad'), 
-        raster=FALSE, label=FALSE, label.size = 4, cols = col) + xlab("UMAP 1")+ylab("UMAP 2")
-
-ggsave(paste0("results/figures/scRNA/KI/score_plot_predicted_cell_types_BMmap_prospective_KI.pdf"), width = 9, height = 4)
+DimPlot(query, reduction = 'umap_projected', group.by = c('predicted_CellType_Broad'), raster=FALSE, label=FALSE, label.size = 4, cols = col)+xlab("UMAP 1")+ylab("UMAP 2")
+ggsave(paste0("results/figures/scRNA/Zheng/score_plot_predicted_cell_types_BMmap_prospective_Zheng.pdf"), width = 9, height = 4)
 ```
+
+## Pseudo time
 
 # Predict Pseudotime values by KNN
 query <- predict_Pseudotime(
@@ -163,17 +142,11 @@ query <- predict_Pseudotime(
   final_label = 'predicted_Pseudotime'   # pseudotime assignments with map QC failing cells assigned as NA
 )
 
+```{r}
 # Visualize Hematopoietic Pseudotime in query data
 FeaturePlot(query, features = c('predicted_Pseudotime'))
-
-ggsave(paste0("results/figures/scRNA/KI/score_plot_predicted_pseudotime_BMmap_prospective_KI.pdf"), width = 5, height = 3.5)
-
-
-
-```{r}
-saveRDS(query, "/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_v2.rds")
+ggsave(paste0("results/figures/scRNA/Zheng/score_plot_predicted_pseudotime_BMmap_prospective_Zheng.pdf"), width = 5, height = 3.5)
 ```
-
 ## calculate factors for each cell
 ```{r}
 #' Perform survival analysis for each MOFA factor
@@ -233,7 +206,6 @@ for (i in 1:11){
   print(nrow(dat))
   RNA_factors[[i]]=dat
 }
-
 RNAfac=do.call(rbind,RNA_factors)
 RNAfac$feature=gsub(".g","",RNAfac$feature)
 
@@ -261,17 +233,12 @@ colnames(table_scores)[1] <- "Cell"
 query@meta.data <- cbind(query@meta.data, table_scores)
 ```
 
-
 ```{r}
-saveRDS(query, "/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_with_scores_v2.rds")
+colnames(query@meta.data)[seq(37,58, 2)]
 ```
 
 ```{r}
-colnames(query@meta.data)[seq(62,83, 2)]
-```
-
-```{r}
-write.csv(table_scores, "results/scores_cells_and_factors_CITE_seq_KI_prospective.csv")
+write.csv(table_scores, "results/scores_cells_and_factors_CITE_seq_Zheng_prospective.csv")
 ```
 
 # Visualize Hematopoietic Pseudotime in query data
@@ -287,13 +254,13 @@ rev(brewer.pal(n = 11, name = "RdBu"))
 
 # Plot scores
 ```{r}
-for(i in seq(62,83, 2)){
+for(i in seq(37,58, 2)){
   print(colnames(query@meta.data)[i])
-   FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) +
+   FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) #+
             #scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu"))) #+ ggplot2::theme(legend.position = "none")
-            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
-  ggsave(paste0("results/figures/scRNA/KI/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.pdf"), width = 5, height = 3.5)
-  #ggsave(paste0("results/figures/scRNA_2/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
+            #scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
+  ggsave(paste0("results/figures/scRNA/Zheng/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.pdf"), width = 5, height = 3.5)
+  #ggsave(paste0("results/figures/scRNAZheng/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
 }
 
 ```
