@@ -1,5 +1,5 @@
 ---
-title: "Split heatmap pathways"
+title: "Split heatmap table_correlation"
 output: html_notebook
 ---
 
@@ -122,7 +122,7 @@ table_correlation$FDR <- p.adjust(table_correlation$p, method = "fdr")
 
 table_correlation$R[table_correlation$FDR > 0.05 & !is.na(table_correlation$FDR)] <- NA
 
-table_correlation$sign <- 1
+table_correlation$sign <- "pos"
 
 table_correlation_1 <- table_correlation
 ```
@@ -147,7 +147,7 @@ table_correlation$FDR <- p.adjust(table_correlation$p, method = "fdr")
 
 table_correlation$R[table_correlation$FDR > 0.05 & !is.na(table_correlation$FDR)] <- NA
 
-table_correlation$sign <- -1
+table_correlation$sign <- "neg"
 
 table_correlation_2 <- table_correlation
 ```
@@ -159,24 +159,30 @@ table_correlation$FDR <- NULL
 ```
 
 ```{r}
-remove <- c("CD4.Memory.T", "CD8.Memory.T", "Early.GMP","Late.GMP", "Naive.T", "NK", "pDC")
+table_correlation$Factor <- gsub("Factor", "DDHM", table_correlation$Factor)
+colnames(table_correlation) <- c("ind_2", "ind", "values", "sign")
+table_correlation$ind <- factor(table_correlation$ind, levels = rev(c(table_correlation$ind[!duplicated(table_correlation$ind)])))
 ```
 
 ```{r}
-table_correlation <- table_correlation[!table_correlation$Cell_type %in% remove,]
+#remove <- c("CD4.Memory.T", "CD8.Memory.T", "Early.GMP","Late.GMP", "Naive.T", "NK", "pDC")
+```
+
+```{r}
+#table_correlation <- table_correlation[!table_correlation$Cell_type %in% remove,]
 #table_correlation$Factor <- factor(table_correlation$Factor, levels = table_correlation$Factor[!duplicated(table_correlation$Factor)])
 ```
 
 ```{r}
 # required, otherwise you cannot use the values as fill
-mydat_wide <- table_correlation %>% pivot_wider(names_from = "sign", values_from = "R")
+mydat_wide <- table_correlation %>% pivot_wider(names_from = "sign", values_from = "values")
 mydat_wide <- data.frame(mydat_wide)
 #mydat_wide <- mydat_wide[!is.na(mydat_wide$pos) | !is.na(mydat_wide$neg),]
 # making your ordered months factor
-mydat_wide$ind <- droplevels(factor(mydat_wide$Cell_type))
+mydat_wide$ind <- droplevels(factor(mydat_wide$ind))
 # The actual triangle computation
-newcoord_up <- make_triangles(mydat_wide$Cell_type, mydat_wide$Factor)
-newcoord_down <- make_triangles(mydat_wide$Cell_type, mydat_wide$Factor, point = "down")
+newcoord_up <- make_triangles(mydat_wide$ind, mydat_wide$ind_2)
+newcoord_down <- make_triangles(mydat_wide$ind, mydat_wide$ind_2, point = "down")
 # just a dirty trick for renaming
 newcoord_down <- newcoord_down %>% dplyr::select(xdown = x, ydown = y)
 # you need to repeat each row of your previous data frame 3 times
@@ -185,16 +191,25 @@ newdata <- bind_cols(repdata, newcoord_up, newcoord_down)
 ```
 
 ```{r}
+colnames(newdata)[colnames(newdata) == "X1"] <- "r_ddhms_vs_cell_types"
+colnames(newdata)[colnames(newdata) == "X.1"] <- "r_txn_scores_vs_cell_types"
+```
+
+```{r}
+#newdata$Factor <- factor(newdata$Factor, levels = rev(c(newdata$Factor[!duplicated(newdata$Factor)])))
+```
+
+```{r}
 ggplot(newdata) +
-  geom_polygon(aes(x = x, y = y, fill = X1, group = interaction(Factor, ind)), color = "#555555", size = 0.1) +
-  scale_fill_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "#DDDDDD", guide = "colourbar") +
+  geom_polygon(aes(x = x, y = y, fill = pos, group = interaction(ind_2, ind)), color = "#555555", size = 0.1) +
+  scale_fill_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B",  midpoint = 0, limits = c(-1, 1), na.value="#DDDDDD") +
   ggnewscale::new_scale_fill() +
-  geom_polygon(aes(x = xdown, y = ydown, fill = X.1, group = interaction(Factor, ind)), color = "#555555", size = 0.1) +
-  scale_fill_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "#DDDDDD", guide = "colourbar") +
+  geom_polygon(aes(x = xdown, y = ydown, fill = neg, group = interaction(ind_2, ind)), color = "#555555", size = 0.1) +
+  scale_fill_gradient2(low = "#297c23", mid = "#fbf6f0", high = "#76237c", midpoint = 0, limits = c(-1, 1), na.value="#DDDDDD") +
   scale_x_continuous(breaks = seq_along(unique(mydat_wide$ind)), 
                      labels = unique(levels(mydat_wide$ind))) +
-  scale_y_continuous(breaks = seq_along(unique(mydat_wide$Factor)),
-                     labels = unique(mydat_wide$Factor))+
+  scale_y_continuous(breaks = seq_along(unique(mydat_wide$ind_2)),
+                     labels = unique(mydat_wide$ind_2))+
   coord_equal()+
   theme(panel.background = element_blank(), # bg of the panel
         panel.grid.major = element_blank(), # get rid of major grid
@@ -203,7 +218,7 @@ ggplot(newdata) +
         panel.grid=element_blank(),
         axis.ticks=element_blank(),
         axis.text.x = element_text(size = 14, angle = 60, hjust=1, colour = "black"),
-        axis.text.y = element_text(size = 14, colour = "black"))
+        axis.text.y = element_text(size = 14, colour = "black"))+ coord_flip()
 
-ggsave("results/figures/test_triangles_correlation_MOFA_2_corrected.pdf", width = 6, height = 6)
+ggsave("results/figures/test_triangles_correlation_MOFA_2_corrected.pdf", width = 10, height = 10)
 ```
