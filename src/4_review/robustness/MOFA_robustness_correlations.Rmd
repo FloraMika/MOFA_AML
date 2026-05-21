@@ -40,8 +40,10 @@ mofa.sel <- select_model(mofa.list)
 ```
 name <- c("90", "80", "70", "60", "50")
 ```{r}
-name <- c( "90", "80", "70", "60", "50", "v1_independant_50","v2_independant_50", "Methylation", "DSRT", "Mutations","Proteins", "Genes", ">5",">4")
+name <- c( "90", "80", "70", "60", "50", "v1_independant_50_data_input","v2_independant_50_data_input", "Methylation", "DSRT", "Mutations","Proteins", "Genes", ">5",">4")
 ```
+
+
 
 ```{r}
 name_2 <- c( "90% data", "80% data", "70% data", "60% data", "50% data", "50% split G1","50 % split G2", "-Methylation", "-DSRT", "-Mutations","-Proteomics", "-Transcriptomics", ">5 omics",">4 omics")
@@ -52,15 +54,19 @@ weights_main <- get_weights(mofa.sel, views = "all", factors = "all")
 weights_main_2 <- rbind(weights_main$DNAm, weights_main$DSRT, weights_main$Mutations, weights_main$Proteomics, weights_main$RNAseq)
 ```
 
+/home/flomik/Data/MOFA_R_Objects/Robustness/v1_independant_50_data_input_MOFA.rds
+[1] "/home/flomik/Data/MOFA_R_Objects/Robustness/v1_independant_50_data_input_MOFA.hdf5"
+
 ```{r}
 list_plots <- list()
 
 for (i in 1:14) {
+  print(name[i])
   filepath <- paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/", name[i], "_MOFA.hdf5")
   model_comp <- load_model(filepath)
   weights_comp <- get_weights(model_comp, views = "all", factors = "all")
   weights_comp_2 <- rbind(weights_comp$Methylation, weights_comp$DSRT, weights_comp$Mutations, weights_comp$Proteins, weights_comp$Genes)
-  print(name[i])
+  
   print(ncol(weights_comp_2))
   correlation <- cor(weights_main_2, weights_comp_2, method = 'pearson')
   max_values <- c(colMaxs(abs(correlation)), -colMaxs(abs(correlation)))

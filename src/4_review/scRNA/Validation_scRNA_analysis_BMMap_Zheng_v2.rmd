@@ -153,8 +153,8 @@ query <- predict_CellTypes(
 
 # UMAP
 ```{r}
-DimPlot(query, reduction = 'umap_projected', group.by = c('predicted_CellType_Broad'), raster=FALSE, label=FALSE, label.size = 4, cols = col)+xlab("UMAP 1")+ylab("UMAP 2")
-ggsave(paste0("results/figures/scRNA/Zheng/score_plot_predicted_cell_types_BMmap_prospective_Zheng.pdf"), width = 9, height = 4)
+#DimPlot(query, reduction = 'umap_projected', group.by = c('predicted_CellType_Broad'), raster=FALSE, label=FALSE, label.size = 4, cols = col)+xlab("UMAP 1")+ylab("UMAP 2")
+#ggsave(paste0("results/figures/scRNA/Zheng/score_plot_predicted_cell_types_BMmap_prospective_Zheng.pdf"), width = 9, height = 4)
 ```
 
 ## Pseudo time
@@ -264,7 +264,7 @@ saveRDS(query, "/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_Z
 
 
 ```{r}
-colnames(query@meta.data)[seq(37,58, 2)]
+colnames(query@meta.data)[seq(40,60, 2)]
 ```
 
 ```{r}
@@ -281,10 +281,19 @@ library(RColorBrewer)
 rev(brewer.pal(n = 11, name = "RdBu"))
 ```
 
+```{r}
+query_2 <- query
+```
+
+```{r}
+query <- query_2
+```
+
 # Plot scores
 ```{r}
-for(i in seq(37,58, 2)){
+for(i in seq(40,60, 2)){
   print(colnames(query@meta.data)[i])
+  query@meta.data[,i][query@meta.data[,i] > max(query@meta.data[,i])/1.7] <- max(query@meta.data[,i])/1.5
    FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) +
             #scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu"))) #+ ggplot2::theme(legend.position = "none")
             scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
