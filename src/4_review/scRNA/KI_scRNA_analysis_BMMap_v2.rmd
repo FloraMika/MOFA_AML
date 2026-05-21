@@ -43,6 +43,15 @@ data <- readRDS("/home/flomik/Data/Clinseq/CITE_seq/Wells_combined_sctransformed
 data
 ```
 
+## remove allographs, CD4 and APL samples
+```{r}
+Idents(data) <- "PatientLevel"
+all_samples <- factor(data$PatientLevel)
+x <- levels(all_samples)
+x <- x[-c(1:3)]
+data <- subset(data, idents = x)
+```
+
 ## assign AML cell types to cells
 ```{r}
 batchvar <- "PatientLevel"
@@ -56,15 +65,6 @@ query <- map_Query(
 
 ncol(query)
 ```
-
-# Run QC based on mapping error score, flag cells with mapping error >= 2.5 MADs above median
-query <- query %>% calculate_MappingError(., reference = ref, MAD_threshold = 2.5) 
-
-# Get QC Plots
-QC_plots <- plot_MappingErrorQC(query)
-
-# Plot together - If this is too crowded, can also just call "QC_plots" aloneto display one by one
-patchwork::wrap_plots(QC_plots, ncol = 4, widths = c(0.8, 0.3, 0.8, 0.3))
 
 ## filter out low quality cells
 ```{r}
@@ -270,8 +270,24 @@ query@meta.data <- cbind(query@meta.data, table_scores)
 saveRDS(query, "/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_with_scores_v2.rds")
 ```
 
+
+
 ```{r}
-colnames(query@meta.data)[seq(62,83, 2)]
+query <- readRDS("/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_with_scores_v2.rds")
+```
+, cols = col
+```{r}
+DimPlot(query, reduction = 'umap_projected', group.by = c('PatientLevel'), 
+        raster=FALSE, label=FALSE, label.size = 4) + xlab("UMAP 1")+ylab("UMAP 2")
+
+ggsave(paste0("results/figures/scRNA/KI/UMAP_patients_KI_pro_after_BMMAP.pdf"), width = 6, height = 4)
+```
+
+```{r}
+colnames(query@meta.data)[seq(60,81, 2)]
+colnames(query@meta.data)[seq(60,81, 2)] <- gsub("Factor_", "DDHM", colnames(query@meta.data)[seq(60,81, 2)])
+colnames(query@meta.data)[seq(60,81, 2)] <- gsub("_score", "", colnames(query@meta.data)[seq(60,81, 2)])
+colnames(query@meta.data)[seq(60,81, 2)]
 ```
 
 ```{r}
@@ -284,22 +300,62 @@ write.csv(table_scores, "results/scores_cells_and_factors_CITE_seq_KI_prospectiv
 library(RColorBrewer)
 ```
 
-```{r}
-rev(brewer.pal(n = 11, name = "RdBu"))
-```
-## change signs scores
-```{r}
 
+
+```{r}
+query_2 <- query
 ```
 
 # Plot scores
 ```{r}
-for(i in seq(62,83, 2)){
+a <- 1
+for(i in seq(60,81, 2)){
   print(colnames(query@meta.data)[i])
-   FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) +
-            #scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu"))) #+ ggplot2::theme(legend.position = "none")
-            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
+  FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) +
+            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")+ xlab("UMAP 1")+ylab("UMAP 2")
   ggsave(paste0("results/figures/scRNA/KI/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.pdf"), width = 5, height = 3.5)
   #ggsave(paste0("results/figures/scRNA_2/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
+  a <- a + 1
 }
 ```
+```{r}
+FeaturePlot(query, features = colnames(query@meta.data)[seq(60,81, 2)], label = FALSE, repel = TRUE) + scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
+ggsave(paste0("results/figures/scRNA/KI/review_score_plot_KI_BMmap_scores_MOFA.pdf"), width = 5, height = 3.5)
+```
+Heatmap surface markers + factors values by cell
+
+```{r}
+
+```
+
+```{r}
+factors <- query@meta.data[,c(which(colnames(query@meta.data) %in% "predicted_CellType_Broad"), seq(60,81, 2))]
+factors$Cell <- rownames(factors)
+surface_markers <- data.frame(t(data@assays$ADT$scale.data))
+surface_markers$Cell <- rownames(surface_markers)
+data <- merge(factors, surface_markers, by = "Cell")
+```
+
+```{r}
+library(ComplexHeatmap)
+```
+
+```{r}
+data_heatmap <- data
+data_heatmap <- data_heatmap[!is.na(data_heatmap$predicted_CellType_Broad),]
+data_type <- colnames(data)[-c(1, 2)]
+data_type <- gsub("DDHM.*", "DDHMs", data_type)
+data_type[!grepl("DDHM", data_type)] <- "Surface_proteins"
+data_heatmap[,3:13] <- scale(data_heatmap[,3:13])
+data_heatmap[,14:ncol(data_heatmap)] <- scale(data_heatmap[,14:ncol(data_heatmap)])
+colnames(data_heatmap) <- gsub(".TotalA", "", colnames(data_heatmap))
+
+x <- names(table(data_heatmap$predicted_CellType_Broad)[table(data_heatmap$predicted_CellType_Broad) < 100])
+data_heatmap$predicted_CellType_Broad[data_heatmap$predicted_CellType_Broad %in% x] <- "Others"
+
+pdf("results/figures/scRNA/KI/Heatmap_KI_CITE_seq_cell_types_BMmap_surface_proteins_factors.pdf", width = 11)
+Heatmap(t(data_heatmap[,-c(1,2)]), name = "Z-score", column_split = data_heatmap$predicted_CellType_Broad, row_split =  data_type, show_row_names = TRUE, show_column_names = FALSE, row_title_rot = 0, column_title_rot = 60)
+dev.off()
+```
+
+
