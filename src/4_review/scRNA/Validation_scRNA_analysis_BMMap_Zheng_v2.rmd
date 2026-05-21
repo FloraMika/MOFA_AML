@@ -259,7 +259,11 @@ query@meta.data <- cbind(query@meta.data, table_scores)
 ```
 
 ```{r}
-saveRDS(query, "/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_Zheng_with_scores_v2.rds")
+saveRDS(query, )
+```
+
+```{r}
+query <- readRDS("/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_Zheng_with_scores_v2.rds")
 ```
 
 
@@ -268,7 +272,28 @@ colnames(query@meta.data)[seq(40,60, 2)]
 ```
 
 ```{r}
-write.csv(table_scores, "results/scores_cells_and_factors_CITE_seq_Zheng_prospective.csv")
+colnames(query@meta.data)[seq(40,60, 2)] <- gsub("Factor_", "DDHM", colnames(query@meta.data)[seq(40,60, 2)])
+colnames(query@meta.data)[seq(40,60, 2)] <- gsub("_score", "", colnames(query@meta.data)[seq(40,60, 2)])
+colnames(query@meta.data)[seq(40,60, 2)]
+```
+
+```{r}
+write.csv(query@meta.data, "results/scores_cells_and_factors_CITE_seq_Zheng_prospective.csv")
+```
+
+2,3,4,5,6,7,8
+```{r}
+query@meta.data$DDHM2 <- -1*query@meta.data$DDHM2
+query@meta.data$DDHM3 <- -1*query@meta.data$DDHM3
+query@meta.data$DDHM4 <- -1*query@meta.data$DDHM4
+query@meta.data$DDHM5 <- -1*query@meta.data$DDHM5
+query@meta.data$DDHM6 <- -1*query@meta.data$DDHM6
+query@meta.data$DDHM7 <- -1*query@meta.data$DDHM7
+query@meta.data$DDHM8 <- -1*query@meta.data$DDHM8
+```
+
+```{r}
+write.csv(query@meta.data, "results/scores_cells_and_factors_CITE_seq_Zheng_prospective_corrected.csv")
 ```
 
 # Visualize Hematopoietic Pseudotime in query data
@@ -289,16 +314,30 @@ query_2 <- query
 query <- query_2
 ```
 
+# Visualize Hematopoietic Pseudotime in query data
+
+```{r}
+library(RColorBrewer)
+```
+
+
+
+```{r}
+query_2 <- query
+```
+
 # Plot scores
 ```{r}
+a <- 1
 for(i in seq(40,60, 2)){
   print(colnames(query@meta.data)[i])
-  query@meta.data[,i][query@meta.data[,i] > max(query@meta.data[,i])/1.7] <- max(query@meta.data[,i])/1.5
-   FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) +
-            #scale_colour_gradientn(colours = rev(brewer.pal(n = 11, name = "RdBu"))) #+ ggplot2::theme(legend.position = "none")
-            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")
-  ggsave(paste0("results/figures/scRNA/Zheng/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.pdf"), width = 5, height = 3.5)
-  #ggsave(paste0("results/figures/scRNAZheng/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
+  #query@meta.data[,i][query@meta.data[,i] > max(query@meta.data[,i])/1.7] <- max(query@meta.data[,i])/1.5
+  #query@meta.data[,i][query@meta.data[,i] < -max(query@meta.data[,i])/1.7] <- -max(query@meta.data[,i])/1.5
+  FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) +
+            scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")+ xlab("UMAP 1")+ylab("UMAP 2")
+  ggsave(paste0("results/figures/scRNA/Zheng/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA_Zheng.pdf"), width = 5, height = 3.5)
+  #ggsave(paste0("results/figures/scRNA_2/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
+  a <- a + 1
 }
-
 ```
+
