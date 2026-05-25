@@ -50,6 +50,9 @@ Rscript /home/flomik/Code/MOFA_AML/src/Run_pipeline.R
 - [Flora Mikaeloff](https://github.com/FloraMika)
 - Tojo James
 - Francesco Marabita
+- Ngias Vu
+- Nona Struyf
+- Leonard Hartmanis
 
 ## Acknowledgment
 

@@ -1,0 +1,118 @@
+---
+title: "Change sign BeatAML"
+output: html_notebook
+---
+
+Aim : change sign to match original model
+Compare DDHM transcriptomics with top 5 positive and negative genes from the model 
+
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
+```
+
+```{r}
+library("readxl")
+library("data.table")
+library(dplyr)
+```
+
+## extract top feature per factor
+```{r}
+RNA_factors=NULL
+for (i in 1:11){
+  factorName=paste0("Factor",i,"_RNAseq")
+  cat(factorName," ")
+  dat=read_excel("/home/flomik/Code/Hallmarks_AML/data/Ngias/AML_MOFAplus_top_factors_v04_f600 (1).xlsx",sheet=factorName)
+  dat=data.table(dat)
+  print(nrow(dat))
+  RNA_factors[[i]]=dat
+}
+
+RNAfac=do.call(rbind,RNA_factors)
+RNAfac$feature=gsub(".g","",RNAfac$feature)
+
+## set thresholds for each factor
+factorNames=unique(RNAfac$factor)
+topGeneThres=c(9,10,2,6,4,1,2,3,3,6,3)
+names(topGeneThres)=factorNames
+```
+
+```{r}
+scores <- read.csv("/home/flomik/Code/MOFA_AML/results/scores_BeatAML_MOFA_transcriptomics.csv")
+```
+
+## transcriptomics
+```{r}
+gex <- read.delim("/home/flomik/Data/external_data_sets/BeatAML/beataml_waves1to4_norm_exp_dbgap.txt",  row.names = NULL)
+gex$display_label <- NULL
+rownames(gex) <- gex$stable_id
+gex$stable_id <- NULL
+```
+
+### matching between scores and gene expression
+```{r}
+mypatients=intersect(scores$patient_id, colnames(gex))
+length(mypatients)
+gex=gex[,c(match(mypatients,colnames(gex)))]
+sum(scores$patient_id!=colnames(gex)) #check if they are the same order
+```
+
+```{r}
+col <- c("#584588",
+"#4076A9",
+"#ABCADA",
+"#BED797",
+"#5E9F48",
+"#F1EFB3",
+"#EEC17F",
+"#E88840",
+"#E99D9B",
+"#CE3D31",
+"#BCB2C9")
+```
+
+BeatAML -> 5, 7, 8, 11
+
+```{r}
+scores$Factor5_score <- -scores$Factor5_score
+scores$Factor7_score <- -scores$Factor7_score
+scores$Factor8_score <- -scores$Factor8_score
+scores$Factor11_score <- -scores$Factor11_score
+
+write.csv(scores,"/home/flomik/Code/MOFA_AML/results/scores_BeatAML_MOFA_transcriptomics_scores_inverted_5_7_8_11.csv")
+```
+
+```{r}
+list_plots <- list()
+
+for (i in 1:11){
+  score_name <- paste0("Factor", i,"_score")
+  score <- scores[, colnames(scores) == score_name]
+  sheet <- RNA_factors[[i]]
+  #pos <- sheet[sheet$sign == "+",]
+  pos <- sheet
+  pos <- pos[order(pos$value, decreasing = TRUE),]
+  top_feat <- gsub(".g", "", pos$feature[1])
+  top_name <- pos$label[1]
+  gene <- data.frame(t(gex[rownames(gex) == top_feat,]))[,1]
+  sign <- pos$sign[1]
+  
+  a <- ggplot(data = scores, mapping = aes(x = gene, y = score)) +
+          geom_point(size = 1) + xlab(top_name) + 
+      ylab(paste0("DDHM", i, " (Transcriptomics score)"))+
+          sm_statCorr(corr_method = "pearson", size = 0.1) + 
+      geom_smooth(method=lm, level=0.95, colour = col[i], fill = col[i], alpha=0.25)+ theme_light()+ 
+      theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), text=element_text(family="Helvetica", size=12))
+  
+  ggsave(paste0("results/figures/sign/beatAML/scatter_plot_top_value_Factor_", i, ".pdf"))
+  print(a)
+  list_plots[[i]] <- a
+}
+```
