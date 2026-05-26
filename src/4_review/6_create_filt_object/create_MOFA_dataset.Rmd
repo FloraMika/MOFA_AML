@@ -1,0 +1,93 @@
+---
+title: "Create MOFA dataset"
+output: html_notebook
+---
+
+
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory
+
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML")) 
+```
+
+Aim : re-create MOFA dataset while waiting for Tojo to provide the pre-processing code
+
+```{r}
+library(SummarizedExperiment)
+library(MultiAssayExperiment)
+library(xlsx)
+```
+
+## load unfiltered data
+```{r}
+load("~/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
+MAexp
+```
+
+## load data MOFA
+```{r}
+load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+mofa.sel <- select_model(mofa.list)
+
+
+objlist <- list(
+  RNAseq = mofa.sel@data$RNAseq$AML,
+  Proteomics = mofa.sel@data$Proteomics$AML,
+  Mutations =mofa.sel@data$Mutations$AML,
+  DSRT = mofa.sel@data$DSRT$AML,
+  DNAm = mofa.sel@data$DNAm$AML
+  )
+
+colnames(objlist$DSRT) == colnames(objlist$RNAseq)
+```
+
+```{r}
+## clinical
+pData <- read.xlsx("/home/flomik/Data/MOFA_R_Objects/AML_MOFA_retro_dataset/Clinical_mofa_retro.xlsx", 1)
+```
+
+```{r}
+pData <- pData[pData$patient_id %in% colnames(objlist$DSRT),]
+pData <- pData[!duplicated(pData$patient_id),]
+pData <- pData[order(match(pData$patient_id, colnames(objlist$DSRT))),]
+pData$patient_id == colnames(objlist$DSRT)
+rownames(pData) <- pData$patient_id
+```
+
+```{r}
+listmap <- list(RNAseq = data.frame(primary = colnames(objlist$RNAseq),
+                                    colname = colnames(objlist$RNAseq),
+                                    stringsAsFactors = FALSE),
+                Proteomics = data.frame(primary = colnames(objlist$Proteomics),
+                                        colname = colnames(objlist$Proteomics),
+                                        stringsAsFactors = FALSE),
+                Mutations = data.frame(primary = colnames(objlist$Mutations),
+                                        colname = colnames(objlist$Mutations),
+                                        stringsAsFactors = FALSE),
+                DSRT = data.frame(primary =  colnames(objlist$DSRT),
+                                  colname =  colnames(objlist$DSRT),
+                                  stringsAsFactors = FALSE),
+                DNAm = data.frame(primary =  colnames(objlist$DNAm),
+                                  colname = colnames(objlist$DNAm),
+                                  stringsAsFactors = FALSE)
+                )
+
+dfmap <- listToMap(listmap)
+```
+
+```{r}
+MAexp_filt <- MultiAssayExperiment(experiments = objlist, colData = pData, sampleMap = dfmap)
+MAexp_filt
+```
+
+```{r}
+# Saving on object in RData format
+save(MAexp_filt, pData, file = "/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05_filt.RData")
+```
+

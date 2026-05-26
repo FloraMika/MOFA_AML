@@ -50,6 +50,16 @@ colnames(data_2$DSRT) == colnames(data_2$Genes)
 ```
 
 ```{r}
+# Saving on object in RData format
+save(data_2, file = "/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05_filt.RData")
+```
+
+```{r}
+load("~/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
+MAexp
+```
+
+```{r}
 a <-colSums(is.na(data_2$DSRT)) != nrow(data_2$DSRT)
 b <-colSums(is.na(data_2$Genes)) != nrow(data_2$Genes)
 c <-colSums(is.na(data_2$Mutations)) != nrow(data_2$Mutations)
