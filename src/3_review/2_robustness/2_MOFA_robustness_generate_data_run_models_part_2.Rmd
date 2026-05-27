@@ -33,7 +33,7 @@ library(dplyr)
 
 ## load data
 ```{r}
-load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
 mofa.sel <- select_model(mofa.list)
 
 
@@ -89,7 +89,7 @@ data_sub_1 <- list(
     Proteins = mofa.sel@data$Proteomics$AML[, colnames(mofa.sel@data$Proteomics$AML) %in% colnames(table_missing_2)])
   
    colnames(data_sub_1$DSRT) == colnames(data_sub_1$Genes)
-   saveRDS(data_sub_1, paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/v1_independant_50_data_input_MOFA.rds"))
+   saveRDS(data_sub_1, paste0("data/Robustness/v1_independant_50_data_input_MOFA.rds"))
    
    
 table_missing_3 <- table_missing[, colnames(table_missing) %in% c(x_2, y_2)]
@@ -102,7 +102,7 @@ data_sub_2 <- list(
     Proteins = mofa.sel@data$Proteomics$AML[, colnames(mofa.sel@data$Proteomics$AML) %in% colnames(table_missing_3)])
   
    colnames(data_sub_2$DSRT) == colnames(data_sub_2$Genes)
-   saveRDS(data_sub_2, paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/v2_independant_50_data_input_MOFA.rds"))
+   saveRDS(data_sub_2, paste0("data/Robustness/v2_independant_50_data_input_MOFA.rds"))
   
 colnames(data_sub_1$DSRT) == colnames(data_sub_2$DSRT)
 ```
@@ -196,11 +196,11 @@ MOFA_fran <- function(data, name_ana){
                                data_options = data_opts,
                                model_options = model_opts,
                                training_options = train_opts )
-      outfile <- paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/", name_ana, "_MOFA.hdf5")
+      outfile <- paste0("data/Robustness/", name_ana, "_MOFA.hdf5")
       mofa.list[[i]] <- run_mofa(mofa.toTrain, outfile, use_basilisk = T)
       mofa.sel <- select_model(mofa.list)
     }
-  #saveRDS(mofa.sel, file=paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/", name, "_MOFA.rds"))
+  #saveRDS(mofa.sel, file=paste0("data/Robustness/", name, "_MOFA.rds"))
   return(mofa.sel)
 }
 ```
@@ -211,4 +211,5 @@ for (j in 1:2) {
   data <- MOFA_fran(list_datasets[[j]], name[[j]])
 }
 ```
+
 

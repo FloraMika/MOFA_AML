@@ -41,8 +41,8 @@ library(xlsx)
 
 ## load data
 ```{r}
-load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
-load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+load("data/input_files/MOFA_input/AML_MAexp_v05.RData")
+load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
 ```
 
 ## load annotations
@@ -108,7 +108,7 @@ for(i in comb){
 
 ## extract DDHM values from the original model
 ```{r}
-factors <- read_xlsx("/home/flomik/Code/MOFA_AML/data/MOFA/DDHMpatValue.xlsx")
+factors <- read_xlsx("data/MOFA/DDHMpatValue.xlsx")
 patients <- factors$patient_id
 rownames(factors) <- factors$patient_id
 factors$sample <- NULL
@@ -159,7 +159,7 @@ for (i in comb) {
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
                                       text=element_text(family="Helvetica", size=12))+ylim(c(min(data_sub[, 2]), max(data_sub[, 2]) +0.5))
   
-  ggsave(paste0("results/figures/correlation_hallmarks_", fact, "_", mod, ".pdf"))
+  ggsave(paste0("results/figures/Associations/correlation_hallmarks_", fact, "_", mod, ".pdf"))
   print(a)
 }
 ```

@@ -33,14 +33,29 @@ library(data.table)
 
 ## Load Symphony reference
 ```{r}
-ref <- readRDS("~/Data/CITE_seq/BoneMarrowMap-main/BoneMarrowMap_SymphonyReference.rds")
-ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap-main/", 'BoneMarrowMap_uwot_model.uwot')
+ref <- readRDS("data/BoneMarrowMap/BoneMarrowMap_SymphonyReference.rds")
+ref$save_uwot_path <- "data/BoneMarrowMap/BoneMarrowMap_uwot_model.uwot"
 ```
 
 ## load seurat object
 ```{r}
-query <- readRDS("/home/flomik/Data/external_data_sets/BMmap/scAML_Zeng_2025_projected_cleaned.rds")
+query <- readRDS("data/input_files/CITE_seq/scAML_Zeng_2025_projected_cleaned.rds")
 query
+```
+MLL_28824 -> AEL
+MLL_28855 -> AEL
+```{r}
+samples <- c("MLL_14666",
+"MLL_16703",
+"MLL_17746",
+"MLL_17843",
+"MLL_17844",
+"MLL_28830",
+"MLL_29512",
+"MLL_29532",
+"MLL_29538",
+"MLL_30862",
+"MLL_30886")
 ```
 
 ## remove allographs, CD4 and APL samples
@@ -142,21 +157,7 @@ col <- c("#A0A0A0", # B
 ```
 
 
-MLL_28824 -> AEL
-MLL_28855 -> AEL
-```{r}
-samples <- c("MLL_14666",
-"MLL_16703",
-"MLL_17746",
-"MLL_17843",
-"MLL_17844",
-"MLL_28830",
-"MLL_29512",
-"MLL_29532",
-"MLL_29538",
-"MLL_30862",
-"MLL_30886")
-```
+
 
 ## Predict Hematopoietic Cell Types by KNN classification
 ```{r}
@@ -280,15 +281,6 @@ query@meta.data <- cbind(query@meta.data, table_scores)
 ```
 
 ```{r}
-saveRDS(query, )
-```
-
-```{r}
-query <- readRDS("/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_Zheng_with_scores_v2.rds")
-```
-
-
-```{r}
 colnames(query@meta.data)[seq(40,60, 2)]
 ```
 
@@ -299,7 +291,7 @@ colnames(query@meta.data)[seq(40,60, 2)]
 ```
 
 ```{r}
-write.csv(query@meta.data, "results/scores_cells_and_factors_CITE_seq_Zheng_prospective.csv")
+write.csv(query@meta.data, "results/scRNA/scores_cells_and_factors_CITE_seq_Zheng_prospective.csv")
 ```
 
 2,3,4,5,6,7,8
@@ -314,7 +306,7 @@ query@meta.data$DDHM8 <- -1*query@meta.data$DDHM8
 ```
 
 ```{r}
-write.csv(query@meta.data, "results/scores_cells_and_factors_CITE_seq_Zheng_prospective_corrected.csv")
+write.csv(query@meta.data, "results/scRNA/scores_cells_and_factors_CITE_seq_Zheng_prospective_corrected.csv")
 ```
 
 # Visualize Hematopoietic Pseudotime in query data
@@ -357,7 +349,6 @@ for(i in seq(40,60, 2)){
   FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) +
             scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")+ xlab("UMAP 1")+ylab("UMAP 2")
   ggsave(paste0("results/figures/scRNA/Zheng/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA_Zheng.pdf"), width = 5, height = 3.5)
-  #ggsave(paste0("results/figures/scRNA_2/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
   a <- a + 1
 }
 ```

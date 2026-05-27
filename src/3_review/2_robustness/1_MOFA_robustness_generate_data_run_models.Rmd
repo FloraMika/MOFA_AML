@@ -34,7 +34,7 @@ library(dplyr)
 
 ## load data
 ```{r}
-load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
 mofa.sel <- select_model(mofa.list)
 
 
@@ -48,14 +48,8 @@ data_2 <- list(
 
 colnames(data_2$DSRT) == colnames(data_2$Genes)
 ```
-
 ```{r}
-# Saving on object in RData format
-save(data_2, file = "/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05_filt.RData")
-```
-
-```{r}
-load("~/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
+load("data/input_files/MOFA_input/AML_MAexp_v05.RData")
 MAexp
 ```
 
@@ -109,7 +103,7 @@ for (i in 1:5) {
     Proteins = mofa.sel@data$Proteomics$AML[, colnames(mofa.sel@data$Proteomics$AML) %in% colnames(table_missing_2)])
   
    colnames(data_sub$DSRT) == colnames(data_sub$Genes)
-   saveRDS(data_sub, paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/", name_ana, "_data_input_MOFA.rds"))
+   saveRDS(data_sub, paste0("data/Robustness/", name_ana, "_data_input_MOFA.rds"))
    list_datasets[[i]] <- data_sub
 }
 ```
@@ -156,7 +150,7 @@ MOFA_fran <- function(data, name_ana){
                                data_options = data_opts,
                                model_options = model_opts,
                                training_options = train_opts )
-      outfile <- paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/", name_ana, "_MOFA.hdf5")
+      outfile <- paste0("data/Robustness/", name_ana, "_MOFA.hdf5")
       mofa.list[[i]] <- run_mofa(mofa.toTrain, outfile, use_basilisk = T)
       mofa.sel <- select_model(mofa.list)
     }

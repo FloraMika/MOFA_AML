@@ -32,17 +32,13 @@ library(data.table)
 
 ## Load Symphony reference
 ```{r}
-ref <- readRDS("~/Data/CITE_seq/BoneMarrowMap-main/BoneMarrowMap_SymphonyReference.rds")
-#ref <- readRDS("/home/flomik/Data/CITE_seq/BoneMarrowMap/BoneMarrowMap_SymphonyReference.rds")
-ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap-main/", 'BoneMarrowMap_uwot_model.uwot')
-#ref$save_uwot_path <- paste0("~/Data/CITE_seq/BoneMarrowMap/", 'BoneMarrowMap_uwot_model.uwot')
+ref <- readRDS("data/BoneMarrowMap/BoneMarrowMap_SymphonyReference.rds")
+ref$save_uwot_path <- "data/BoneMarrowMap/BoneMarrowMap_uwot_model.uwot"
 ```
-
 
 ## load seurat object
 ```{r}
-#data <- readRDS("/home/flomik/Data/CITE_seq/Wells_combined_sctransformed.rds")
-data <- readRDS("/home/flomik/Data/Clinseq/CITE_seq/Wells_combined_sctransformed.rds")
+data <- readRDS("data/input_files/CITE_seq/Wells_combined_sctransformed.rds")
 data
 ```
 
@@ -178,7 +174,7 @@ ggsave(paste0("results/figures/scRNA/KI/score_plot_predicted_pseudotime_BMmap_pr
 
 
 ```{r}
-saveRDS(query, "/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_v2.rds")
+#saveRDS(query, "/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_v2.rds")
 ```
 
 ## calculate factors for each cell
@@ -269,11 +265,11 @@ query@meta.data <- cbind(query@meta.data, table_scores)
 ```
 
 ```{r}
-saveRDS(query, "/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_with_scores_v2.rds")
+#saveRDS(query, "/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_with_scores_v2.rds")
 ```
 
 ```{r}
-query <- readRDS("/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_with_scores_v2.rds")
+#query <- readRDS("/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_with_scores_v2.rds")
 ```
 
 ```{r}
@@ -291,9 +287,8 @@ colnames(query@meta.data)[seq(60,81, 2)]
 ```
 
 ```{r}
-write.csv(table_scores, "results/scores_cells_and_factors_CITE_seq_KI_prospective.csv")
+write.csv(table_scores, "results/scRNA/scores_cells_and_factors_CITE_seq_KI_prospective.csv")
 ```
-
 
 
 ## change 4, 5 and 8
@@ -324,7 +319,6 @@ for(i in seq(60,81, 2)){
   FeaturePlot(query, features = colnames(query@meta.data)[i], label = FALSE, repel = TRUE) +
             scale_colour_gradient2(low = "#2166AC", mid = "#fbf6f0", high = "#B2182B", midpoint = 0, space = "Lab", na.value = "grey50", guide = "colourbar")+ xlab("UMAP 1")+ylab("UMAP 2")
   ggsave(paste0("results/figures/scRNA/KI/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.pdf"), width = 5, height = 3.5)
-  #ggsave(paste0("results/figures/scRNA_2/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA.png"), width = 4, height = 4)
   a <- a + 1
 }
 ```
@@ -360,5 +354,6 @@ pdf("results/figures/scRNA/KI/Heatmap_KI_CITE_seq_cell_types_BMmap_surface_prote
 Heatmap(t(data_heatmap[,-c(1,2)]), name = "Z-score", column_split = data_heatmap$predicted_CellType_Broad, row_split =  data_type, show_row_names = TRUE, show_column_names = FALSE, row_title_rot = 0, column_title_rot = 60)
 dev.off()
 ```
+
 
 

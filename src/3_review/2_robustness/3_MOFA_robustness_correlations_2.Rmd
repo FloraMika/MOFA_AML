@@ -35,7 +35,7 @@ library(ggplot2)
 
 ## load data
 ```{r}
-load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
 mofa.sel <- select_model(mofa.list)
 ```
 
@@ -62,7 +62,7 @@ Analysis :
 list_plots <- list()
 
 for (i in 1:14) {
-  filepath <- paste0("/home/flomik/Data/MOFA_R_Objects/Robustness/", name[i], "_MOFA.hdf5")
+  filepath <- paste0("data/Robustness/", name[i], "_MOFA.hdf5")
   model_comp <- load_model(filepath)
   weights_comp <- get_weights(model_comp, views = "all", factors = "all")
   weights_comp_2 <- rbind(weights_comp$Methylation, weights_comp$DSRT, weights_comp$Mutations, weights_comp$Proteins, weights_comp$Genes)
@@ -86,7 +86,7 @@ for (i in 1:14) {
   geom_bar(stat="identity")+ theme_classic()+xlab("Features weights correlation coefficient")+ylab("")+xlab("r")+ scale_x_continuous(name ="r", 
                     limits=c(0,1), breaks=c(0, 0.5, 1))+ggtitle(name_2[i])+ theme(axis.title.x = element_text(face = "italic"))
   p
-  ggsave(paste0("results/figures/MOFA/correlation_plots_MOFA_", name[i],".pdf"))
+  #Savage(paste0("results/figures/MOFA/correlation_plots_MOFA_", name[i],".pdf"))
   list_plots[[i]] <- p
 }
 ```
@@ -112,7 +112,7 @@ library(gridExtra)
                            list_plots[[13]], list_plots[[14]], 
                           ncol = 3)
  g
-ggsave("results/figures/summary_robstness_mofa_model.pdf", g, width = 6, height = 10.5)
+ggsave("results/figures/MOFA/summary_robstness_mofa_model.pdf", g, width = 6, height = 10.5)
 
 ```
 

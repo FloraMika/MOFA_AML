@@ -1,0 +1,182 @@
+---
+title: "Extract top weights MOFA"
+output: html_notebook
+---
+
+Analysis:
+1. Extract top weights for factors 2 (drugs)
+2. Extract top weights for factors 4 (mutations)
+3. Extract top weights for factors 4 (drugs)
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory (replace by your path)
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
+```
+
+```{r}
+library(MOFA2)
+library(RColorBrewer)
+library(GSEABase)
+library(tidyverse)
+library(xlsx)
+library(maditr)
+library("AnnotationDbi")
+```
+
+# Analysis
+
+## load data (replace by directory)
+```{r}
+load("data/input_files/MOFA_input/AML_MAexp_v05_filt.RData")
+ls()
+```
+
+## load MOFA object (replace by your repository)
+```{r}
+load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
+```
+
+## load annotations
+```{r}
+annot.df <- read.table("data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
+conv <- read.xlsx("data/Drugs/Annotation_curated_DrugBank_ChEMBL_class_revised_2021-10-28.xlsx", 1)
+conv <- conv[,c(1,2, 5)]
+colnames(conv)[1] <- "feature"
+```
+
+
+## Select MOFA object
+```{r}
+mofa.sel <- select_model(mofa.list)
+```
+
+```{r}
+list_drugs <- c("Venetoclax", "Azacitidine", "Fludarabine", "Decitabine", "Crenolanib", "Midostaurin", "Sorafenib", "Quizartinib", "Gilteribinib")
+list_factors <- c("DDHM2", "DDHM5", "DDHM8", "DDHM9", "DDHM4", "DDHM11")
+```
+
+```{r}
+weights <- get_weights(mofa.sel, views = "DSRT", factor = 2, scale = TRUE, as.data.frame = TRUE)
+weights <- merge(conv, weights, by = "feature")
+weights <- weights[order(weights$value, decreasing = FALSE),]
+weights <- weights[1:30,]
+weights$feature.name <- factor(weights$feature.name, levels = rev(weights$feature.name))
+```
+
+```{r}
+data <- weights
+colnames(data)[c(2, 5)] <- c("x", "y")
+```
+
+```{r}
+# Plot
+p <- ggplot(data, aes(x=x, y=y)) +
+  geom_segment(
+    aes(x=x, xend=x, y=0, yend=y), 
+    color=ifelse(data$x %in% c("Azacitidine","Venetoclax"), "#1F78B4", "grey"), 
+    size=ifelse(data$x %in% c("Azacitidine","Venetoclax"), 1.3, 0.7)
+  ) +
+  geom_point(
+    color=ifelse(data$x %in% c("Azacitidine","Venetoclax"), "#1F78B4", "grey"), 
+    size=ifelse(data$x %in% c("Azacitidine","Venetoclax"), 5, 2)
+  ) +
+  coord_flip() +
+  theme(
+    legend.position="none"
+  ) +
+  xlab("") +
+  ylab("weight") +
+  ggtitle("DDHM2")+ theme_light()+theme(panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank(), axis.line = element_line(size = 0.5, linetype = "solid",
+                                   colour = "grey"))  # Black and white theme
+p
+
+ggsave("results/figures/Weights/top_negative_weights_drugs_factor_2.pdf", width = 4)
+```
+
+```{r}
+weights <- get_weights(mofa.sel, views = "Mutations", factor = 4, scale = TRUE, as.data.frame = TRUE)
+weights <- weights[order(abs(weights$value), decreasing = TRUE),]
+colnames(weights)[1] <- "feature.name"
+weights$feature.name <- factor(weights$feature.name, levels = rev(weights$feature.name))
+```
+
+```{r}
+data <- weights
+colnames(data)[c(1, 3)] <- c("x", "y")
+```
+
+
+```{r}
+# Plot
+p <- ggplot(data, aes(x=x, y=y)) +
+  geom_segment(
+    aes(x=x, xend=x, y=0, yend=y), 
+    color=ifelse(data$x %in% c("FLT3_ITD", "FLT3_HS"), "#B2DF8A", "grey"), 
+    size=ifelse(data$x %in% c("FLT3_ITD", "FLT3_HS"), 1.3, 0.7)
+  ) +
+  geom_point(
+    color=ifelse(data$x %in% c("FLT3_ITD", "FLT3_HS"), "#B2DF8A", "grey"), 
+    size=ifelse(data$x %in% c("FLT3_ITD", "FLT3_HS"), 5, 2)
+  ) +
+  coord_flip() +
+  theme(
+    legend.position="none"
+  ) +
+  xlab("") +
+  ylab("weight") +
+  ggtitle("DDHM4")+ theme_light()+theme(panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank(), axis.line = element_line(size = 0.5, linetype = "solid",
+                                   colour = "grey"))  # Black and white theme
+p
+
+ggsave("results/figures/Weights/top_weights_mutations_factor_4.pdf", width = 4)
+```
+
+```{r}
+weights <- get_weights(mofa.sel, views = "DSRT", factor = 4, scale = TRUE, as.data.frame = TRUE)
+weights <- merge(conv, weights, by = "feature")
+weights <- weights[order(abs(weights$value), decreasing = TRUE),]
+weights <- weights[1:30,]
+weights$feature.name <- factor(weights$feature.name, levels = rev(weights$feature.name))
+
+```
+
+```{r}
+data <- weights
+colnames(data)[c(2, 5)] <- c("x", "y")
+```
+
+
+```{r}
+# Plot
+p <- ggplot(data, aes(x=x, y=y)) +
+  geom_segment(
+    aes(x=x, xend=x, y=0, yend=y), 
+    color=ifelse(data$x %in% c("Sorafenib"), "#B2DF8A", "grey"), 
+    size=ifelse(data$x %in% c("Sorafenib"), 1.3, 0.7)
+  ) +
+  geom_point(
+    color=ifelse(data$x %in% c("Sorafenib"), "#B2DF8A", "grey"), 
+    size=ifelse(data$x %in% c("Sorafenib"), 5, 2)
+  ) +
+  coord_flip() +
+  theme(
+    legend.position="none"
+  ) +
+  xlab("") +
+  ylab("weight") +
+  ggtitle("DDHM4")+ theme_light()+theme(panel.grid.major = element_blank(),
+  panel.grid.minor = element_blank(), axis.line = element_line(size = 0.5, linetype = "solid",
+                                   colour = "grey"))  # Black and white theme
+p
+
+ggsave("results/figures/Weights/top_weights_drugs_factor_4.pdf", width = 4)
+```
+
+
