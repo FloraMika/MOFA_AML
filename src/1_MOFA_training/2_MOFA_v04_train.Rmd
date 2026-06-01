@@ -4,9 +4,14 @@
 rm(list=ls())
 ```
 
+```{r}
+path <- getwd()
+new_path <- gsub("MOFA_AML/.*","MOFA_AML/",path)
+```
+
 ### set directory (replace by your repository)
 ```{r setup}
-    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
+    knitr::opts_knit$set(root.dir = normalizePath(new_path)) 
 ```
 
 ```{r}

@@ -1,20 +1,26 @@
+#!/usr/bin/env Rscript
+
 # =========================
 # Libraries
 # =========================
 library(tidyverse)
 library(dplyr)
 library(ggplot2)
-library(openxlsx)
+library(xlsx)
 library(gtools)
 library(stringr)
+
+
+path <- getwd()
+new_path <- gsub("MOFA_AML/.*","MOFA_AML/",path)
+
 
 # =========================
 # Load data
 # =========================
-mfactor_data <- read.xlsx(
-  "~/AMLmultiomics/data-drivenFeatures.xlsx",
-  sheet = "Blad2"
-)
+mfactor_data <- read.xlsx(paste0(new_path, 
+  "data/MOFA/data-drivenFeatures.xlsx"), "Blad2")
+
 
 # =========================
 # Prepare data
@@ -360,14 +366,12 @@ p
 # =========================
 ggsave(
   plot = p,
-  filename = "results/figures/MOFA/hallmark_circular_plot.pdf",
+  filename = paste0(new_path, "img/hallmark_circular_plot.pdf"),
   device = "pdf",
   dpi = 600,
   width = 47,
   height = 46,
   bg = "white"
 )
-
-
 
 

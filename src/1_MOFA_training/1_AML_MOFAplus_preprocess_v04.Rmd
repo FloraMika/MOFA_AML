@@ -1,0 +1,266 @@
+---
+title: "AML preprocess for MOFA+ v04"
+output:
+  html_document:
+    fig_width: 9
+    fig_height: 7
+    theme: cerulean
+    toc: yes
+    number_sections: true
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+---
+
+Require all the libraries first
+```{r message=F}
+require(MultiAssayExperiment)
+require(SummarizedExperiment)
+require(minfi)
+require(DESeq2)
+require(MOFA2)
+require(RColorBrewer)
+require(tidyverse)
+```
+
+# Load the data
+
+```{r}
+load("/AML/data/MultiAssayExp/AML_MAexp_v05.RData")
+outDir <-  "/AML/out/MOFA_v04"
+dir.create(outDir)
+```
+
+# Preprocess
+
+## RNAseq
+
+Remore features with low counts, VST transform, exclude genes on Y chromosome and select the top 5000 variable features.
+
+```{r}
+idx <- rowSums(counts(MAexp[["RNAseq"]], normalized=TRUE) >= 10 ) >= ncol(MAexp[["RNAseq"]])/2
+dds.filter <- MAexp[["RNAseq"]][idx,]
+
+dds.filter <- estimateSizeFactors(dds.filter)
+vst.filter <- varianceStabilizingTransformation(dds.filter)
+
+geneplotter::multidensity(assay(vst.filter), xlab="VST", lwd=2, legend = NULL, main="VST-transform")
+
+vst.filter <- vst.filter[!rownames(vst.filter) %in% na.omit(rownames(vst.filter)[mcols(vst.filter)$chromosome_name=="Y"])]
+
+feat.var <- rowVars(assay(vst.filter))
+names(feat.var) <- rownames(vst.filter) 
+
+idx <- rownames(vst.filter) %in% names(sort(feat.var, decreasing = T))[1:5000]
+vst.filter <- vst.filter[idx,]
+
+geneplotter::multidensity(assay(vst.filter), xlab="VST", lwd=2, legend = NULL, main="VST-transform")
+```
+
+## Proteomics
+
+Consider features detected in all samples, exclude genes on Y chromosome and select the top 5000 variable features.
+
+```{r}
+idx <- rowSums(is.na(assay(MAexp[["Proteomics"]])))==0
+prot.se.filter <- MAexp[["Proteomics"]][idx,]
+
+geneplotter::multidensity(assay(prot.se.filter), xlab="log2R", lwd=2, legend = NULL)
+
+prot.se.filter <- prot.se.filter[!rownames(prot.se.filter) %in% na.omit(rownames(prot.se.filter)[mcols(prot.se.filter)$chromosome_name=="Y"])]
+
+feat.var <- rowVars(assay(prot.se.filter))
+names(feat.var) <- rownames(prot.se.filter) 
+
+idx <- rownames(prot.se.filter) %in% names(sort(feat.var, decreasing = T))[1:5000]
+prot.se.filter <- prot.se.filter[idx,]
+
+geneplotter::multidensity(assay(prot.se.filter), xlab="log2R", lwd=2, legend = NULL)
+```
+
+## DSRT
+
+```{r}
+geneplotter::multidensity(assay(MAexp[["DSRT"]]), xlab="sDSS", lwd=2, legend = NULL)
+```
+
+## Mutations
+
+Remove mutations detected in less than 3 samples
+
+```{r}
+mut.se.filter <- MAexp[["Mutations"]][rowSums(assays(MAexp[["Mutations"]])$mut.pres)>=3,]
+tmp <- assays(mut.se.filter)$mut.pres
+
+# tmp.dend <- hclust(dist(t(tmp), method = "binary"))
+# tmp.dend <- reorder(as.dendrogram(tmp.dend), wts = colSums(tmp), agglo.FUN = max)
+
+tmp[tmp==1] <- "Mut"
+tmp[tmp==0] <- ""
+
+col=c(Mut="blue")
+
+ComplexHeatmap::oncoPrint(tmp, get_type = function(x) {x},
+                          
+                          alter_fun = list(
+                            Mut = function(x, y, w, h) grid::grid.rect(x, y, w*0.9, h*0.9, gp = grid::gpar(fill = col["Mut"], col = NA))
+                          ),
+                          col=col, show_pct = F,
+                          row_order = rownames(tmp)[order(rowSums(assays(mut.se.filter)$mut.pres), decreasing = T)])
+
+```
+
+## Cytogenetic alterations
+
+Remove alterations detected in less than 3 samples
+
+```{r}
+cyt.se.filter <- MAexp[["Cytogenetics"]][rowSums(assay(MAexp[["Cytogenetics"]]))>=3,]
+tmp <- assay(cyt.se.filter)
+
+tmp[tmp==1] <- "Alt"
+tmp[tmp==0] <- ""
+
+col=c(Alt="blue")
+
+ComplexHeatmap::oncoPrint(tmp, get_type = function(x) {x},
+                          
+                          alter_fun = list(
+                            Alt = function(x, y, w, h) grid::grid.rect(x, y, w*0.9, h*0.9, gp = grid::gpar(fill = col["Alt"], col = NA))
+                          ),
+                          col=col, show_pct = F,
+                          row_order = rownames(tmp)[order(rowSums(assay(cyt.se.filter)), decreasing = T)])
+
+```
+
+## DNAm
+
+Exclude probes on X and Y chromosomes and select the top 5000 variable features. Transform to M values.
+
+```{r}
+data.Rset.filt <- MAexp[["DNAm"]][as.logical(!seqnames(MAexp[["DNAm"]])=="chrX" & !seqnames(MAexp[["DNAm"]])=="chrY"),]
+
+feat.var <- rowVars(assays(data.Rset.filt)$Beta)
+names(feat.var) <- rownames(data.Rset.filt) 
+
+idx <- rownames(data.Rset.filt) %in% names(sort(feat.var, decreasing = T))[1:5000]
+data.Rset.filt <- data.Rset.filt[idx,]
+
+assays(data.Rset.filt)$M <- getM(data.Rset.filt)
+ 
+geneplotter::multidensity(assays(data.Rset.filt)$Beta, xlab="Beta", lwd=2, legend = NULL)
+geneplotter::multidensity(assays(data.Rset.filt)$M, xlab="M", lwd=2, legend = NULL)
+
+```
+
+
+# Create MOFA object
+
+A data frame with columns "sample","feature","view","group","value" needs to be created and saved as text file. The mutations and the cytogenetics alterations will be on the same view ("Mutations")
+
+```{r}
+assay(vst.filter) %>%
+  as.data.frame() %>% 
+  rownames_to_column("feature.ID") %>%
+  mutate(feature = paste0(sapply(strsplit(feature.ID, ".", fixed = T), "[",1), ".g")) %>% 
+  gather(key="sample", value = "value", -c(feature, feature.ID)) %>% 
+  mutate(view="RNAseq",
+         group="AML") %>% 
+  select(sample, feature, view, group, value) -> g.df
+
+assay(prot.se.filter) %>% 
+  as.data.frame() %>% 
+  rownames_to_column("feature.ID") %>%
+  mutate(feature=paste0(rowData(prot.se.filter)$ensembl_gene_id, ".p")) %>%
+  filter(feature!="NA.p") %>% 
+  gather(key="sample", value = "value", -c(feature, feature.ID)) %>% 
+  mutate(view="Proteomics",
+         group="AML") %>% 
+  select(sample, feature, view, group, value) -> p.df
+
+assay(assay(MAexp[["DSRT"]])) %>% 
+  as.data.frame() %>% 
+  rownames_to_column("feature") %>%
+  gather(key="sample", value = "value", -feature) %>% 
+  mutate(view="DSRT",
+         group="AML") %>% 
+  select(sample, feature, view, group, value) -> d.df
+
+
+assay(assays(mut.se.filter)$mut.pres) %>% 
+  as.data.frame() %>% 
+  rownames_to_column("feature") %>%
+  gather(key="sample", value = "value", -feature) %>% 
+  mutate(view="Mutations",
+         group="AML") %>% 
+  select(sample, feature, view, group, value) -> m.df
+
+assay(assay(cyt.se.filter)) %>% 
+  as.data.frame() %>% 
+  rownames_to_column("feature") %>%
+  gather(key="sample", value = "value", -feature) %>% 
+  mutate(view="Mutations",
+         group="AML") %>% 
+  select(sample, feature, view, group, value) -> cyt.df
+
+
+assay(assays(data.Rset.filt)$M) %>% 
+  as.data.frame() %>% 
+  rownames_to_column("feature") %>%
+  gather(key="sample", value = "value", -feature) %>% 
+  mutate(view="DNAm",
+         group="AML") %>% 
+  select(sample, feature, view, group, value) -> DNAm.df
+```
+
+Create annotation data.frame.
+
+```{r}
+tmp1 <- data.frame(feature = unique(g.df$feature), stringsAsFactors = F)
+tmp1$id <- sapply(strsplit(tmp1$feature, split = ".", fixed = T),"[",1)
+tmp1$name <- rowData(dds.filter)$hgnc_symbol[match(tmp1$id, rowData(dds.filter)$ensembl_gene_id)]
+
+tmp2<- data.frame(feature = unique(p.df$feature), stringsAsFactors = F)
+tmp2$id <- sapply(strsplit(tmp2$feature, split = ".", fixed = T),"[",1)
+tmp2$name <- rowData(prot.se.filter)$hgnc_symbol[match(tmp2$id, rowData(prot.se.filter)$ensembl_gene_id)]
+
+tmp3 <- data.frame(feature = unique(d.df$feature), stringsAsFactors = F)
+tmp3$id <- tmp3$feature
+tmp3$name <- rowData(MAexp[["DSRT"]])$feature.name[match(tmp3$id, rownames(MAexp[["DSRT"]]))]
+
+tmp4 <- data.frame(feature = unique(m.df$feature), stringsAsFactors = F)
+tmp4$id <- tmp4$feature
+tmp4$name <- tmp4$feature
+
+tmp5 <- data.frame(feature = unique(cyt.df$feature), stringsAsFactors = F)
+tmp5$id <- tmp5$feature
+tmp5$name <- rowData(cyt.se.filter)$name[match(tmp5$id, rownames(cyt.se.filter))]
+
+annot.Rset <-getAnnotation(data.Rset.filt)
+tmp6 <- data.frame(feature = unique(DNAm.df$feature), stringsAsFactors = F)
+tmp6 %>% 
+  mutate(id = feature,
+         name = annot.Rset$UCSC_RefGene_Name[match(feature, annot.Rset$Name)]) %>%
+  mutate(name = sapply(name, function(x) paste(sapply(str_split(x,";"),unique),collapse = ";"))) -> tmp6
+
+annot.df <- rbind(tmp1, tmp2, tmp3, tmp4, tmp5, tmp6)
+rm(tmp1, tmp2, tmp3, tmp4, tmp5, tmp6)
+```
+
+
+Create MOFA data
+
+```{r}
+
+mofa.data <- create_mofa(rbind(g.df, p.df, d.df, m.df, cyt.df, DNAm.df))
+mofa.data
+plot_data_overview(mofa.data)
+```
+
+Write data to txt file.
+
+```{r}
+write.table(rbind(g.df, p.df, d.df, m.df, cyt.df, DNAm.df),
+            file="~/Projects/AML/out/MOFA_v04/MOFA_v04_input.txt", sep="\t", quote=F, row.names = F)
+write.table(annot.df,
+            file="~/Projects/AML/out/MOFA_v04/MOFA_v04_annot_features.txt", sep="\t", quote=F, row.names = F)
+```
+

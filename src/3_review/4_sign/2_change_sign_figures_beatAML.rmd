@@ -12,10 +12,16 @@ Compare DDHM transcriptomics with top 5 positive and negative genes from the mod
 rm(list=ls())
 ```
 
-### set directory
-```{r setup}
-    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/MOFA_AML/")) 
+```{r}
+path <- getwd()
+new_path <- gsub("MOFA_AML/.*","MOFA_AML/",path)
 ```
+
+### set directory (replace by your repository)
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath(new_path)) 
+```
+
 
 ```{r}
 library("readxl")
