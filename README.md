@@ -40,19 +40,25 @@ Model details are available online at https://leukemia.scilifelab.se
 
 ## Pipeline
 
+### Main figures and analysis
 ```
 Rscript /home/flomik/Code/MOFA_AML/src/Run_pipeline.R
-# This command will run the whole pipeline 
+# This command will run the pipeline 
 ```
 
+### Cell types proportions
+RNA-seq data was re-processed by https://github.com/lhartmanis/RNA-seq_processing_pipeline and cell proportions were calculated using https://github.com/lhartmanis/cell_type_deconvolution
+
+### Addditional figures
+Additional figures and analysis can be found at https://github.com/nstruyf/DDHM_MMS_validation
 
 ## Authors
 - [Flora Mikaeloff](https://github.com/FloraMika)
 - Tojo James
 - Francesco Marabita
 - Ngias Vu
-- Nona Struyf
-- Leonard Hartmanis
+- [Nona Struyf](https://github.com/nstruyf)
+- [Leonard Hartmanis](https://github.com/lhartmanis)
 
 ## Acknowledgment
 
