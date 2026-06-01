@@ -40,6 +40,19 @@ Model details are available online at https://leukemia.scilifelab.se
 
 ## Pipeline
 
+### Import data
+1. DSRT, DNA methylation, MS-proteomics data and CITE-seq data are not publicly available for privacy reasons and will be accessible upon review. Input data folder needs to be placed in the data subfolder in the repository to run the analysis.
+2. To perform Pathway analysis Reactome file can be downloaded from https://reactome.org/download/current/Ensembl2Reactome_All_Levels.txt and also put in the data/Pathways subfolder
+3. To assign cell types using BoneMarrowMap, reference file can be downloaded following this script : 
+```
+# Download Bone Marrow Reference - 344 Mb
+curl::curl_download('https://bonemarrowmap.s3.us-east-2.amazonaws.com/BoneMarrowMap_SymphonyReference.rds', 
+                    destfile = paste0("path_to_folder/MOFA_AML/data/BoneMarrowMap/", 'BoneMarrowMap_SymphonyReference.rds'))
+# Download uwot model file - 221 Mb
+curl::curl_download('https://bonemarrowmap.s3.us-east-2.amazonaws.com/BoneMarrowMap_uwot_model.uwot', 
+                    destfile = paste0("path_to_folder/MOFA_AML/data/BoneMarrowMap/", 'BoneMarrowMap_uwot_model.uwot'))
+```                    
+                    
 ### Main figures and analysis
 ```
 Rscript /home/flomik/Code/MOFA_AML/src/Run_pipeline.R

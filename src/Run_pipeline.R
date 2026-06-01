@@ -20,7 +20,7 @@
 
 ### set Path
 path_general <- getwd()
-new_path_general <- gsub("MOFA_AML/.*","MOFA_AML/src/",path)
+new_path_general <- gsub("MOFA_AML/.*","MOFA_AML/src/",path_general)
 
 library(rmarkdown)
 

@@ -362,8 +362,18 @@ display: none;
 # =========================
 # Libraries
 # =========================
-library(tidyverse)
-library(dplyr)
+library(tidyverse)</code></pre>
+<pre><code>## ── Attaching core tidyverse packages ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse 2.0.0 ──
+## ✔ dplyr     1.1.4     ✔ readr     2.1.5
+## ✔ forcats   1.0.0     ✔ stringr   1.5.1
+## ✔ ggplot2   4.0.2     ✔ tibble    3.2.1
+## ✔ lubridate 1.9.3     ✔ tidyr     1.3.1
+## ✔ purrr     1.0.2     
+## ── Conflicts ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── tidyverse_conflicts() ──
+## ✖ dplyr::filter() masks stats::filter()
+## ✖ dplyr::lag()    masks stats::lag()
+## ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
+<pre class="r"><code>library(dplyr)
 library(ggplot2)
 library(xlsx)
 library(gtools)
@@ -718,9 +728,12 @@ p &lt;- ggplot(
       &quot;RNAseq&quot;     = &quot;#E78AC3&quot;,
       &quot;DSRT&quot;       = &quot;#FC8D62&quot;
     )
-  )
-
-# Display plot
+  )</code></pre>
+<pre><code>## Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
+## ℹ Please use `linewidth` instead.
+## This warning is displayed once every 8 hours.
+## Call `lifecycle::last_lifecycle_warnings()` to see where this warning was generated.</code></pre>
+<pre class="r"><code># Display plot
 p</code></pre>
 <pre><code>## Warning: Removed 22 rows containing missing values or values outside the scale range (`geom_bar()`).</code></pre>
 <pre><code>## Warning: Removed 22 rows containing missing values or values outside the scale range (`geom_text()`).</code></pre>
