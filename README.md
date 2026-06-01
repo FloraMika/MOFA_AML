@@ -57,7 +57,7 @@ Additional figures and analysis can be found at https://github.com/nstruyf/DDHM_
 - Tojo James
 - Francesco Marabita
 - Ngias Vu
-- [Nona Struyf] (https://github.com/nstruyf)
+- [Nona Struyf](https://github.com/nstruyf)
 - [Leonard Hartmanis](https://github.com/lhartmanis)
 
 ## Acknowledgment
