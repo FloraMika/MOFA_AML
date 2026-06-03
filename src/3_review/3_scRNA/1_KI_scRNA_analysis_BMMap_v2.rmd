@@ -10,6 +10,7 @@ Process :
 NB : run BMMap with raw counts
 2. Calculate DDHMs
 3. Run correlation betweem DDHM and cell types scores
+4. Check genes of interests
 
 ### clean environment
 ```{r}
@@ -361,5 +362,37 @@ Heatmap(t(data_heatmap[,-c(1,2)]), name = "Z-score", column_split = data_heatmap
 dev.off()
 ```
 
+## check genes of interest
+```{r}
+list_genes <- read.delim("/home/flomik/Code/MOFA_AML/data/Genes/genes_UMAP_CITE_seq_KI.txt")
+list_genes <- list_genes$Genes
+```
 
+TBXAX1, GATA4, PRUNE1 -_> not found
+```{r}
+FeaturePlot(query, features = list_genes, label = FALSE, repel = TRUE, cols = c("#fbf6f0","#B2182B"))+ xlab("UMAP 1")+ylab("UMAP 2")
+ggsave(paste0("results/figures/scRNA/KI/UMAP_genes_list_genes_Tom_KI_pro.pdf"), width = 12, height = 10)
+```
+
+GATA2 x GDI1
+GATA2 x MPP1
+GATA2 x PRUNE1 --> not found
+GATA2 x EMILIN2 (edited)
+```{r}
+pair_1 <- list(c("GATA2", "GDI1"))
+query <- AddModuleScore(object = query, features = pair_1, name = "GATA2_GDI1_score")
+
+pair_2 <- list(c("GATA2", "MPP1"))
+query <- AddModuleScore(object = query, features = pair_2, name = "GATA2_MPP1_score")
+
+
+pair_3 <- list(c("GATA2", "EMILIN2"))
+query <- AddModuleScore(object = query, features = pair_3, name = "GATA2_EMILIN2_score")
+```
+
+
+```{r}
+FeaturePlot(object = query, features = c("GATA2_GDI1_score1", "GATA2_MPP1_score1", "GATA2_EMILIN2_score1"), label = FALSE, repel = TRUE, cols = c("#fbf6f0","#B2182B"))+ xlab("UMAP 1")+ylab("UMAP 2")
+ggsave(paste0("results/figures/scRNA/KI/UMAP_genes_list_genes_Tom_KI_pro_pairs_of_genes.pdf"), width = 6, height = 5)            
+```
 
