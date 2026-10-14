@@ -21,6 +21,7 @@ new_path <- gsub("MOFA_AML/.*","MOFA_AML/",path)
 ```{r}
 library(readxl)
 library(smplot2)
+library(ggplot2)
 ```
 
 ## extract DDHM values
@@ -44,15 +45,23 @@ drug$patient_id <- rownames(drug)
 data <- merge(factors, drug, by = "patient_id")
 ```
 
+```{r}
+library(ggpubr)
+```
+
 
 ```{r}
 a <- ggplot(data = data, mapping = aes(x = Factor2_score, y = FIMM115484)) +
           geom_point(size = 1) + xlab("DDHM2 score") + ylab("Venetoclax response")+
-          sm_statCorr(corr_method = "pearson", size = 0.1) +
+          #sm_statCorr(corr_method = "pearson", size = 0.1) +
   geom_smooth(method=lm, level=0.95, colour = "#4076A9", fill = "#4076A9", alpha=0.25)+
   theme_light()+ 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-                                      text=element_text(family="Helvetica", size=12))
+                                      text=element_text(family="Helvetica", size=12))+    
+    stat_cor(method = "pearson", 
+             show.legend = FALSE,
+             cor.coef.name = "r",
+             digits = 20)
 a
 ggsave("results/figures/Associations/scatter_plots_Venetoclax_vs_txn_score_2.pdf", width = 4, height = 4, units = "in")
 ```

@@ -43,37 +43,24 @@ library(gridExtra)
 library(xlsx)
 ```
 
-## load data
-```{r}
-load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
-#load("data/input_files/MOFA_input/AML_MAexp_v05.RData")
-
-load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
-#load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
-```
-
 ## load annotations
 ```{r}
 annot.df <- read.table("data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
 ```
 
-## Select MOFA object
+## load MOFA model
 ```{r}
-mofa.sel <- select_model(mofa.list)
-```
-
-```{r}
-save(mofa.sel, file="~/Code/Submissions/SND/SND_MOFA/Data_MOFA/input_files/MOFA_object/MOFA_model_v04.RData")
-```
-
-```{r}
-load("~/Code/Submissions/SND/SND_MOFA/Data_MOFA/input_files/MOFA_object/MOFA_model_v04.RData")
+load("data/MOFA/MOFA_model_v04.RData")
 ```
 
 ```{r}
 mofa.sel
 ```
-
+### load MOFA object (replace by directory)
+```{r}
+load("data/input_files//MOFA_object/MOFA_v04_train_list.RData")
+mofa.sel <- select_model(mofa.list)
+```
 
 ## extract top features
 ```{r}
@@ -173,37 +160,48 @@ colnames(data)[5+11]
 ```{r}
 a <- ggplot(data = data, mapping = aes(x = data[, 3], y =data[, 3+11])) +
           geom_point(size = 1) + xlab("DDHM2 (MOFA)") + ylab("DDHM2 (Transcriptomics score)")+
-          sm_statCorr(corr_method = "pearson", size = 0.1) +
+          #sm_statCorr(corr_method = "pearson", size = 0.1) +
   geom_smooth(method=lm, level=0.95, colour = "#4076A9", fill = "#4076A9", alpha=0.25)+
   theme_light()+ 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-                                      text=element_text(family="Helvetica", size=12))
+                                      text=element_text(family="Helvetica", size=12))+    
+    stat_cor(method = "pearson", 
+             show.legend = FALSE,
+             cor.coef.name = "r",
+             digits = 10, p.accuracy  = 0.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001)
+
 a
 ggsave("results/figures/Associations/scatter_plots_MOFA_vs_transcriptomics_Factor_2_v2.pdf", width = 4, height = 4, units = "in")
 ```
-,
+
+
 ```{r}
 a <- ggplot(data = data, mapping = aes(x = data[, 5], y =data[, 5+11])) +
           geom_point(size = 1) + xlab("DDHM4 (MOFA)") + ylab("DDHM4 (Transcriptomics score inverted sign)")+
-          sm_statCorr(corr_method = "pearson", size = 0.1) +
+          #sm_statCorr(corr_method = "pearson", size = 0.1) +
   geom_smooth(method=lm, level=0.95, colour = "#BED797", fill = "#BED797", alpha=0.25)+
   theme_light()+ 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-                                      text=element_text(family="Helvetica", size=12))
+                                      text=element_text(family="Helvetica", size=12))+    
+    stat_cor(method = "pearson", 
+             show.legend = FALSE,
+             cor.coef.name = "r",
+             digits = 10, p.accuracy  = 0.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001)
 a
 ggsave("results/figures/Associations/scatter_plots_MOFA_vs_transcriptomics_Factor_4_v2.pdf", width = 4, height = 4, units = "in")
 ```
-,
-
-
 ```{r}
 a <- ggplot(data = data, mapping = aes(x = data[, 9], y =data[, 9+11])) +
           geom_point(size = 1) + xlab("DDHM8 (MOFA)") + ylab("DDHM8 (Transcriptomics score inverted sign)")+
-          sm_statCorr(corr_method = "pearson", size = 0.1) +
+          #sm_statCorr(corr_method = "pearson", size = 0.1) +
   geom_smooth(method=lm, level=0.95, colour = "#FF7F00", fill = "#FF7F00", alpha=0.25)+
   theme_light()+ 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
-                                      text=element_text(family="Helvetica", size=12))
+                                      text=element_text(family="Helvetica", size=12))+    
+    stat_cor(method = "pearson", 
+             show.legend = FALSE,
+             cor.coef.name = "r",
+             digits = 10, p.accuracy  = 0.00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001)
 a
 ggsave("results/figures/Associations/scatter_plots_MOFA_vs_transcriptomics_Factor_8_v2.pdf", width = 4, height = 4, units = "in")
 ```
@@ -441,14 +439,18 @@ surv_pvalue(fit.surv, data)
 ```
 
 ```{r}
+#data$Factor8_group <- ifelse(data$Factor8_group == 1, 2, 1)
+```
+
+```{r}
 ggsurv <- ggsurvplot(fit.surv,
            data = data,
            risk.table = TRUE,
-           conf.int = TRUE,
+           conf.int = FALSE,
            size = 1,
            pval = TRUE,
-           palette = c("#0000FF", "#FB0207"),
-           legend.labs = c("t_lo", "t_hi"),
+           palette = c("#FB0207", "#0000FF"),
+           legend.labs = c("t_hi", "t_lo"),
            ggtheme = theme_light(),
            tables.height = 0.23,
            xlim = c(0, 10),
@@ -468,6 +470,8 @@ ggsurv$table <- ggsurv$table + theme(panel.grid.major = element_blank(), panel.g
 pdf("results/figures/Survival/survival_curves_DDHM8_scores_txn_BeatAML_median.pdf", width = 4, height = 5)
 print(ggsurv, newpage = FALSE)
 dev.off()
+
+ggsurv
 ```
 
 ## scores in sorafenib patients
