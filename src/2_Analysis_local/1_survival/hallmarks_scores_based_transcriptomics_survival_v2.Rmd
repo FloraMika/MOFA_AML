@@ -45,10 +45,11 @@ library(xlsx)
 
 ## load data
 ```{r}
-load("data/input_files/MOFA_input/AML_MAexp_v05.RData")
+load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
+#load("data/input_files/MOFA_input/AML_MAexp_v05.RData")
 
-
-load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
+load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+#load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
 ```
 
 ## load annotations
@@ -59,6 +60,18 @@ annot.df <- read.table("data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header
 ## Select MOFA object
 ```{r}
 mofa.sel <- select_model(mofa.list)
+```
+
+```{r}
+save(mofa.sel, file="~/Code/Submissions/SND/SND_MOFA/Data_MOFA/input_files/MOFA_object/MOFA_model_v04.RData")
+```
+
+```{r}
+load("~/Code/Submissions/SND/SND_MOFA/Data_MOFA/input_files/MOFA_object/MOFA_model_v04.RData")
+```
+
+```{r}
+mofa.sel
 ```
 
 
@@ -279,7 +292,13 @@ dev.off()
 ```{r}
 # run cox regression based on groups
 fit.surv <- survfit(Surv(survival, status) ~ Factor8_group_2, data = data)
+```
 
+```{r}
+surv_pvalue(fit.surv, data)
+```
+
+```{r}
 ggsurv <- ggsurvplot(fit.surv,
            data = data,
            risk.table = TRUE,
@@ -316,16 +335,18 @@ dev.off()
 ```{r}
 name_ana <- "BeatAML"
 path_txn <- "data/input_files/BeatAML/beataml_waves1to4_norm_exp_dbgap.txt"
+path_txn <- "/home/flomik/Data/external_data_sets/BeatAML/beataml_waves1to4_norm_exp_dbgap.txt"
 path_clinical <- "data/BeatAML/beataml_wv1to4_clinical.xlsx"
 path_factors <- "data/MOFA/AML_MOFAplus_top_factors_v04_f600 (1).xlsx"
 ```
 
-/home/flomik/Data/external_data_sets/BeatAML/beataml_waves1to4_norm_exp_dbgap.txt
+
 ## add categories
 ```{r}
 categories_drug <- read.xlsx("data/Drugs/Annotation_curated_DrugBank_ChEMBL_class_revised_2021-10-28.xlsx", 1)
 ```
 
+/home/flomik/Data/external_data_sets/BeatAML/beataml_waves1to4_norm_exp_dbgap.txt
 ### import gene expression
 ```{r}
 gex <- read.delim(path_txn,  row.names = NULL)
@@ -413,7 +434,13 @@ data <- data[data$patient_id %in% patients_chemo,]
 ```{r}
 # run cox regression based on groups
 fit.surv <- survfit(Surv(survival, status) ~ Factor8_group, data = data)
+```
 
+```{r}
+surv_pvalue(fit.surv, data)
+```
+
+```{r}
 ggsurv <- ggsurvplot(fit.surv,
            data = data,
            risk.table = TRUE,

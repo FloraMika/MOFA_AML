@@ -1,0 +1,46 @@
+---
+title: "Extract raw data methylation"
+output: html_notebook
+---
+
+
+```{r}
+library(xlsx)
+```
+
+# load files
+```{r}
+load("~/Data/MOFA_R_Objects/AML_MAexp_v05.RData") #MOFA ids
+mofa_ids <- MAexp$patient_id
+
+load("/home/flomik/Data/data_franscesco/DNAm/AML_DNAm_GenomicRatioSet_v01.RData") #methylation ids
+patient_id_final_met <- colData(data.Rset)@listData$patient_id
+
+patient <- read.csv("~/Data/data_franscesco/EPIC_methylation_Proteomics/sample_sheet.csv") #matching methylation ids
+```
+
+```{r}
+patient_id_final_met_out <- patient_id_final_met[!patient_id_final_met %in% mofa_ids]
+patient_id_final_met_out
+
+patient_out <- patient[patient$patient_id %in% patient_id_final_met_out, ]
+
+patient_out_2 <- patient[patient$patient_id %in% patient_out$patient_id,]
+patient <- patient[!patient$patient_id %in% patient_out$patient_id,]
+write.csv(patient, paste0(direct, "/sample_sheet_MOFA.csv"))
+```
+
+```{r}
+direct <- "/home/flomik/Data/EGA/raw_methylation_MOFA/"
+out_path_1 <- paste0(direct, paste0(patient_out$Slide, "/", patient_out$Slide, "_", patient_out$Array, "_Red.idat"))
+out_path_2 <- paste0(direct, paste0(patient_out$Slide, "/", patient_out$Slide, "_", patient_out$Array, "_Grn.idat"))
+out_path <- c(out_path_1, out_path_2)
+```
+
+```{r}
+for (i in 1:4) {
+  file.remove(out_path[i])
+}
+```
+
+

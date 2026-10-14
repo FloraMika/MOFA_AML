@@ -1,0 +1,24 @@
+---
+title: "Extract raw data CITE-seq"
+output: html_notebook
+---
+
+```{r}
+library(xlsx)
+library(Seurat)
+```
+
+
+```{r}
+query <- readRDS("~/Code/SND_MOFA/Data_MOFA/input_files/CITE_seq/Wells_combined_sctransformed.rds")
+```
+
+P16358_9015
+P16358_9014
+P16358_9008
+P16358_9011
+P16358_9012
+P16358_9009
+P16358_9007
+P16358_9010
+P16358_9013

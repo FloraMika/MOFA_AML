@@ -374,6 +374,15 @@ FeaturePlot(query, features = list_genes, label = FALSE, repel = TRUE, cols = c(
 ggsave(paste0("results/figures/scRNA/KI/UMAP_genes_list_genes_Tom_KI_pro.pdf"), width = 12, height = 10)
 ```
 
+```{r}
+list_2 <- c("IMPDH1", "IMPDH2")
+```
+
+```{r}
+FeaturePlot(query, features = list_2, label = FALSE, repel = TRUE, cols = c("#fbf6f0","#B2182B"))+ xlab("UMAP 1")+ylab("UMAP 2")
+ggsave(paste0("results/figures/scRNA/KI/UMAP_genes_list_genes_Tom_KI_pro_2.pdf"), width = 8, height = 3)
+```
+
 GATA2 x GDI1
 GATA2 x MPP1
 GATA2 x PRUNE1 --> not found
