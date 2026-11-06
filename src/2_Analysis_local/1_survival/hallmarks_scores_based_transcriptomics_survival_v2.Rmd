@@ -48,6 +48,11 @@ library(xlsx)
 annot.df <- read.table("data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
 ```
 
+## load data
+```{r}
+load("data/AML_MAexp_v05_filt.RData")
+```
+
 ## load MOFA model
 ```{r}
 load("data/MOFA/MOFA_model_v04.RData")
@@ -55,11 +60,6 @@ load("data/MOFA/MOFA_model_v04.RData")
 
 ```{r}
 mofa.sel
-```
-### load MOFA object (replace by directory)
-```{r}
-load("data/input_files//MOFA_object/MOFA_v04_train_list.RData")
-mofa.sel <- select_model(mofa.list)
 ```
 
 ## extract top features
@@ -85,12 +85,11 @@ names(topGeneThres)=factorNames
 ## Extract transcriptomics
 ```{r}
 gex <- data.frame(mofa.sel@data[[5]]$AML)
-gex <-gex[!is.na(gex),]
+gex <- gex[,colSums(is.na(gex)) != nrow(gex)]
 rownames(gex) <- gsub(".g", "", rownames(gex))
 gex$stable_id <- rownames(gex)
-txn <- gex[!is.na(gex$ALBB13002),]
-txn$ALG200931 <- NULL
-condition <- data.frame(patient_id = colnames(txn))
+condition <- data.frame(patient_id = colnames(gex)[-118])
+txn <- gex
 ```
 
 ## Calculate factor scores transcriptomics
@@ -115,16 +114,27 @@ for (i in 1:11) {
 ```
 
 ```{r}
-write.csv(condition, "processing/MOFA_transcriptomics_scores.csv")
+write.csv(condition, "processing/MOFA_transcriptomics_scores_new_ids.csv")
+```
+
+```{r}
+id <- read.csv("/home/flomik/Code/Submissions/EGA/MOFA/results/table_samples_retro_ids.csv", row.names = 1)
+colnames(id)[1] <- "patient_id"
 ```
 
 ## extract DDHM values
 ```{r}
-factors <- read_xlsx("data/MOFA/DDHMpatValue.xlsx")
-patients <- factors$patient_id
-rownames(factors) <- factors$patient_id
-factors$sample <- NULL
-factors$patient_id <- NULL
+#factors <- read_xlsx("data/MOFA/DDHMpatValue.xlsx")
+#factors <- merge(id, factors, by = "patient_id")
+#patients <- factors$pData.new_ID
+#rownames(factors) <- factors$pData.new_ID
+#factors$pData.new_ID <- NULL
+#factors$patient_id <- NULL
+#factors$sample <- NULL
+#write.csv(factors, "data/MOFA/DDHMpatValue_new_ids.csv")
+factors <- read.csv("data/MOFA/DDHMpatValue_new_ids.csv", row.names = 1)
+patients <- rownames(factors)
+
 factors <- data.frame(lapply(factors, as.numeric))
 factors$patient_id <- patients
 txn <- condition[,colnames(condition) %in% c("patient_id", colnames(condition)[grepl("score", colnames(condition))])]
@@ -215,19 +225,25 @@ plots <- marrangeGrob(myplots, nrow = 4, ncol = 3, layout_matrix = matrix(
 ggsave("results/figures/Associations/scatter_plots_MOFA_vs_transcriptomics_v2.pdf", plots, width = 8, height = 8, units = "in")
 ```
 
+
 ## load clinical data
 ```{r}
 clinical_data <- data.frame(pData)
+clinical_data <- merge(id, clinical_data, by = "patient_id")
+clinical_data$patient_id <- NULL
+colnames(clinical_data)[1] <- "patient_id"
 clinical_data <- clinical_data[, colnames(clinical_data) %in% c("time_days", "status", "patient_id")]
 clinical_data$survival <- clinical_data$time_days/365
-data <- merge(factors, condition, by = "patient_id")
+data <- merge(factors, condition, by = "patient_id", all.x = TRUE)
 data <- merge(clinical_data, data, by = "patient_id")
 ```
 
 
 ## separate groups between high Factor 8 and low Factor 8
 ```{r}
-data$Factor8_group <- paste0("G", data$Factor8_group)
+data$Factor8_group[!is.na(data$Factor8_group)] <- paste0("G", data$Factor8_group[!is.na(data$Factor8_group)])
+table(data$Factor8_group)
+
 data$Factor8_group_2 <- NA
 data$status
 data$DDHM8_group <- NA
@@ -237,20 +253,7 @@ data$DDHM8_group <- NA
 ```{r}
 data$DDHM8_group[data$DDHM8 > median(data$DDHM8)] <- 2
 data$DDHM8_group[data$DDHM8 < median(data$DDHM8)] <- 1
-```
-
-
-```{r}
-data$Factor8_score <- -1*data$Factor8_score
-```
-
-```{r}
-data$Factor8_group_2[data$Factor8_score > median(data$Factor8_score)] <- 2
-data$Factor8_group_2[data$Factor8_score < median(data$Factor8_score)] <- 1
-```
-
-```{r}
-data$Factor8_group_2[is.na(data$Factor8_group_2)] <- 2
+table(data$DDHM8_group)
 ```
 
 ## Survival analysis
@@ -282,14 +285,34 @@ ggsurv$table <- ggsurv$table + theme(panel.grid.major = element_blank(), panel.g
                                       text=element_text(family="Helvetica", size=12))
 
 ggsurv 
-pdf("results/figures/Survival/survival_curves_DDHM8_median.pdf", width = 4, height = 5)
+pdf("results/figures/Survival/survival_curves_DDHM8_median_CORRECTED.pdf", width = 4, height = 5)
 print(ggsurv, newpage = FALSE)
 dev.off()
+```
+```{r}
+data <- data[!is.na(data$Factor8_score),]
+```
+
+
+```{r}
+data$Factor8_score <- -1*data$Factor8_score
+```
+
+```{r}
+data$Factor8_group_2[data$Factor8_score > median(data$Factor8_score)] <- 2
+data$Factor8_group_2[data$Factor8_score < median(data$Factor8_score)] <- 1
+table(data$Factor8_group_2)
+```
+
+```{r}
+data$Factor8_group_2[is.na(data$Factor8_group_2)] <- 2
+table(data$Factor8_group_2)
 ```
 
 ```{r}
 # run cox regression based on groups
 fit.surv <- survfit(Surv(survival, status) ~ Factor8_group_2, data = data)
+fit.surv
 ```
 
 ```{r}
