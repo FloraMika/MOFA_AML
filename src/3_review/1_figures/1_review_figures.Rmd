@@ -45,19 +45,20 @@ library(xlsx)
 
 ## load data
 ```{r}
-load("data/input_files/MOFA_input/AML_MAexp_v05.RData")
-load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
+load("data/input_files/Data_MOFA/MOFA_input_data/AML_MAexp_v05_filt.RData")
 ```
+
+## load MOFA model
+```{r}
+load("data/input_files/Data_MOFA/MOFA_object/MOFA_model_v04.RData")
+```
+
 
 ## load annotations
 ```{r}
 annot.df <- read.table("data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
 ```
 
-## Select MOFA object
-```{r}
-mofa.sel <- select_model(mofa.list)
-```
 ## make list combination
 ```{r}
 comb <- list(c("Proteomics", "Factor1"),
@@ -112,7 +113,7 @@ for(i in comb){
 
 ## extract DDHM values from the original model
 ```{r}
-factors <- read_xlsx("data/MOFA/DDHMpatValue.xlsx")
+factors <- read.csv("data/MOFA/DDHMpatValue_new_ids.csv")
 patients <- factors$patient_id
 rownames(factors) <- factors$patient_id
 factors$sample <- NULL
@@ -121,6 +122,10 @@ factors <- data.frame(lapply(factors, as.numeric))
 factors$patient_id <- patients
 colnames(factors) <- gsub("DDHM", "Factor", colnames(factors))
 data <- merge(factors, table_score, by = "patient_id")
+```
+
+```{r}
+write.csv(data, "results/source_data/scatter_plots_factors_layers.csv")
 ```
 
 ## set colors MOFA

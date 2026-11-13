@@ -26,12 +26,12 @@ library(xlsx)
 library(MOFA2)
 library(ggplot2)
 ```
-
+/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData
 
 ### load MOFA object (replace by directory)
 ```{r}
-load("data/input_files//MOFA_object/MOFA_v04_train_list.RData")
-mofa.sel <- select_model(mofa.list)
+load("data/input_files/Data_MOFA/MOFA_object/MOFA_model_v04.RData")
+mofa.sel
 ```
 
 ```{r}
@@ -45,7 +45,7 @@ table_var_2$factor <- factor(table_var_2$factor, levels = table_var_2$factor)
 ```
 
 ```{r}
-write.csv(table_var_2, "results/MOFA/total_variance_MOFA_figure.csv")
+write.csv(table_var_2, "results/source_data/total_variance_MOFA_figure.csv")
 ```
 
 ```{r}

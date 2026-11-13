@@ -50,12 +50,12 @@ annot.df <- read.table("data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header
 
 ## load data
 ```{r}
-load("data/AML_MAexp_v05_filt.RData")
+load("data/input_files/Data_MOFA/MOFA_input_data/AML_MAexp_v05_filt.RData")
 ```
 
 ## load MOFA model
 ```{r}
-load("data/MOFA/MOFA_model_v04.RData")
+load("data/input_files/Data_MOFA/MOFA_object/MOFA_model_v04.RData")
 ```
 
 ```{r}
@@ -147,6 +147,10 @@ data$Factor8_score <- -1*data$Factor8_score
 ```
 
 ```{r}
+write.csv(data, "results/source_data/data_correlation_F4_F8_MOFA_transcriptomics.csv")
+```
+
+```{r}
 myplots <- vector('list', 11)
 
 for (i in 2:12) {
@@ -229,8 +233,8 @@ ggsave("results/figures/Associations/scatter_plots_MOFA_vs_transcriptomics_v2.pd
 ## load clinical data
 ```{r}
 clinical_data <- data.frame(pData)
-clinical_data <- merge(id, clinical_data, by = "patient_id")
-clinical_data$patient_id <- NULL
+#clinical_data <- merge(id, clinical_data, by = "patient_id")
+#clinical_data$patient_id <- NULL
 colnames(clinical_data)[1] <- "patient_id"
 clinical_data <- clinical_data[, colnames(clinical_data) %in% c("time_days", "status", "patient_id")]
 clinical_data$survival <- clinical_data$time_days/365
@@ -254,6 +258,10 @@ data$DDHM8_group <- NA
 data$DDHM8_group[data$DDHM8 > median(data$DDHM8)] <- 2
 data$DDHM8_group[data$DDHM8 < median(data$DDHM8)] <- 1
 table(data$DDHM8_group)
+```
+
+```{r}
+write.csv(data, "results/source_data/data_survival_F8_MOFA.csv")
 ```
 
 ## Survival analysis
@@ -307,6 +315,10 @@ table(data$Factor8_group_2)
 ```{r}
 data$Factor8_group_2[is.na(data$Factor8_group_2)] <- 2
 table(data$Factor8_group_2)
+```
+
+```{r}
+write.csv(data, "results/source_data/data_survival_F8_transcriptomics.csv")
 ```
 
 ```{r}
@@ -367,7 +379,6 @@ path_factors <- "data/MOFA/AML_MOFAplus_top_factors_v04_f600 (1).xlsx"
 categories_drug <- read.xlsx("data/Drugs/Annotation_curated_DrugBank_ChEMBL_class_revised_2021-10-28.xlsx", 1)
 ```
 
-/home/flomik/Data/external_data_sets/BeatAML/beataml_waves1to4_norm_exp_dbgap.txt
 ### import gene expression
 ```{r}
 gex <- read.delim(path_txn,  row.names = NULL)
@@ -453,6 +464,10 @@ data <- data[data$patient_id %in% patients_chemo,]
 ```
 
 ```{r}
+write.csv(data, "results/source_data/data_survival_F8_transcriptomics_BeatAML.csv")
+```
+
+```{r}
 # run cox regression based on groups
 fit.surv <- survfit(Surv(survival, status) ~ Factor8_group, data = data)
 ```
@@ -464,6 +479,7 @@ surv_pvalue(fit.surv, data)
 ```{r}
 #data$Factor8_group <- ifelse(data$Factor8_group == 1, 2, 1)
 ```
+
 
 ```{r}
 ggsurv <- ggsurvplot(fit.surv,
@@ -544,6 +560,11 @@ colnames(data)[8]
 ```{r}
 colnames(data)[8+14]
 ```
+
+```{r}
+write.csv(data, "results/source_data/data_survival_F4_MOFA_transcriptomics_beatAML_Sorafenib.csv")
+```
+
 
 ```{r}
 a <- ggplot(data = data, mapping = aes(x = data[, 8], y =data[, 8+14])) +
@@ -630,6 +651,10 @@ for (i in 1:11) {
 ```{r}
 clinical =clinics[,colnames(clinics) %in% c("patient_id","status", "survival")]
 data <- merge(condition, clinical, by = "patient_id")
+```
+
+```{r}
+write.csv(data, "results/source_data/data_survival_F2_MOFA_transcriptomics_beatAML_venetoclax.csv")
 ```
 
 ```{r}

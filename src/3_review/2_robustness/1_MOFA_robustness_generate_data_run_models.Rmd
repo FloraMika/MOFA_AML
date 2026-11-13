@@ -39,8 +39,8 @@ library(dplyr)
 
 ## load data
 ```{r}
-load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
-mofa.sel <- select_model(mofa.list)
+load("data/input_files/Data_MOFA/MOFA_object/MOFA_model_v04.RData")
+mofa.sel
 
 
 data_2 <- list(
@@ -52,10 +52,6 @@ data_2 <- list(
   )
 
 colnames(data_2$DSRT) == colnames(data_2$Genes)
-```
-```{r}
-load("data/input_files/MOFA_input/AML_MAexp_v05.RData")
-MAexp
 ```
 
 ```{r}

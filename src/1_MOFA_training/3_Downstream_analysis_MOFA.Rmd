@@ -48,13 +48,18 @@ library(psych)
 
 ## load data (replace by your repository)
 ```{r}
-## MOFA
-load("data/input_files/MOFA_input/AML_MAexp_v05_filt.RData")
-load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
-ls()
+load("data/input_files/Data_MOFA/MOFA_input_data/AML_MAexp_v05_filt.RData")
+```
 
+## load MOFA model
+```{r}
+load("data/input_files/Data_MOFA/MOFA_object/MOFA_model_v04.RData")
+```
+
+```{r}
 ## clinical
 clinical_data <- pData
+clinical_data$X <- NULL
 
 ## pathways
 ensembl.react <- read.table("data/Pathways/Ensembl2Reactome_All_Levels.txt", header = F, sep="\t", comment.char ="", quote = "")
@@ -63,11 +68,6 @@ ensembl.react <- read.table("data/Pathways/Ensembl2Reactome_All_Levels.txt", hea
 ## load annotations
 ```{r}
 annot.df <- read.table("data/MOFA/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
-```
-
-## Select MOFA object
-```{r}
-mofa.sel <- select_model(mofa.list)
 ```
 
 ## Model overview.
@@ -85,6 +85,14 @@ plot_factor_cor(mofa.sel)
 pdf("results/figures/MOFA/correlation_factors_model.pdf")
 plot_factor_cor(mofa.sel)
 dev.off()
+```
+```{r}
+Z <- get_factors(mofa.sel)
+  
+# Compute and plot correlation
+r <- abs(cor(x=do.call(rbind, Z), y=do.call(rbind, Z), method="pearson", use = "complete.obs"))
+r
+write.csv(r, "results/source_data/factor_factor_correlation_MOFA.csv")
 ```
 
 ## variance decomposition by factor
@@ -116,9 +124,8 @@ colnames(mofa.sel@samples_metadata)
 
 ## filter and order clinical data
 ```{r}
-clinical_data <- clinical_data[!duplicated(clinical_data$patient_id),]
 names(clinical_data)[1] <- "sample"
-clinical_data$group <- "AML"
+names(clinical_data)[2] <- "group"
 table(clinical_data$ELN_2022_AO)
 clinical_data <- clinical_data[order(samples_names(mofa.sel)$AML, clinical_data$sample),]
 ```
@@ -145,7 +152,7 @@ clinical_data$sample_type <- NULL
 ```
 
 ```{r}
-clinical_data$sample
+clinical_data$X
 ```
 
 ```{r}
@@ -206,6 +213,8 @@ rownames(p.values)
 
 p.values <- p.values[,c(1, 4, 5, 6, 7, 8, 9, 10, 11, 2, 3)]
 p.values <- p.values[c(8, 9, 10, 11, 12, 13, 14, 15, 16, 1, 2, 17, 3, 18, 4, 5, 6, 19, 20, 21, 22, 23, 24, 7, 25),]
+
+write.csv(p.values, "results/source_data/MOFA_clinical_pvalues.csv")
 
 #p.values_2 <- p.values
 #p.values_2[8:9,1] <- "no"

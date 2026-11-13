@@ -40,8 +40,8 @@ library(ggplot2)
 
 ## load data
 ```{r}
-load("data/input_files/MOFA_object/MOFA_v04_train_list.RData")
-mofa.sel <- select_model(mofa.list)
+load("data/input_files/Data_MOFA/MOFA_object/MOFA_model_v04.RData")
+mofa.sel
 ```
 
 ```{r}
@@ -87,6 +87,9 @@ for (i in 1:14) {
   print(mean(correlation_2$value))
   correlation_2$main <- gsub("Factor", "DDHM", correlation_2$main)
   correlation_2$comparison <- gsub("Factor", "DDHM", correlation_2$comparison)
+  
+  write.csv(correlation_2, paste0("results/source_data/scatter_plots_factors_layers",name[i],".csv"))
+  
   p<-ggplot(data=correlation_2, aes(x=value, y=comparison)) +
   geom_bar(stat="identity")+ theme_classic()+xlab("Features weights correlation coefficient")+ylab("")+xlab("r")+ scale_x_continuous(name ="r", 
                     limits=c(0,1), breaks=c(0, 0.5, 1))+ggtitle(name_2[i])+ theme(axis.title.x = element_text(face = "italic"))

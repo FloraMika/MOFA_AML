@@ -42,10 +42,9 @@ library(data.table)
 ref <- readRDS("data/BoneMarrowMap/BoneMarrowMap_SymphonyReference.rds")
 ref$save_uwot_path <- "data/BoneMarrowMap/BoneMarrowMap_uwot_model.uwot"
 ```
-
 ## load seurat object
 ```{r}
-data <- readRDS("data/input_files/CITE_seq/Wells_combined_sctransformed.rds")
+data <- readRDS("data/input_files/Data_MOFA/CITE_seq/Wells_combined_sctransformed.rds")
 data
 ```
 
@@ -184,6 +183,24 @@ ggsave(paste0("results/figures/scRNA/KI/score_plot_predicted_pseudotime_BMmap_pr
 #saveRDS(query, "/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_v2.rds")
 ```
 
+```{r}
+query <- LoadSeuratRds("/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_v2.rds")
+```
+
+```{r}
+umap_ki <- data.frame(query@reductions$umap_projected@cell.embeddings)
+umap_ki$Cell <- rownames(umap_ki)
+query@meta.data$Cell <- rownames(query@meta.data)
+umap_ki <- merge(umap_ki, query@meta.data, by = "Cell") 
+umap_ki <- umap_ki[,colnames(umap_ki) %in% c("Cell", "umapprojected_1", "umapprojected_2", "PatientLevel", "predicted_CellType_Broad")]
+colnames(umap_ki)
+```
+
+```{r}
+write.csv(umap_ki, "results/source_data/UMAP_KI_BM_cell_types.csv")
+```
+
+
 ## calculate factors for each cell
 ```{r}
 #' Perform survival analysis for each MOFA factor
@@ -276,8 +293,9 @@ query@meta.data <- cbind(query@meta.data, table_scores)
 ```
 
 ```{r}
-#query <- readRDS("/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_with_scores_v2.rds")
+query <- readRDS("/home/flomik/Data/CITE_seq/Seurat_object_predicted_class_BMmap_KI_with_scores_v2.rds")
 ```
+
 
 ```{r}
 DimPlot(query, reduction = 'umap_projected', group.by = c('PatientLevel'), 
@@ -303,6 +321,22 @@ write.csv(table_scores, "results/scRNA/scores_cells_and_factors_CITE_seq_KI_pros
 query@meta.data$DDHM4 <- -1*query@meta.data$DDHM4
 query@meta.data$DDHM5 <- -1*query@meta.data$DDHM5
 query@meta.data$DDHM8 <- -1*query@meta.data$DDHM8
+```
+
+```{r}
+umap_ki <- data.frame(query@reductions$umap_projected@cell.embeddings)
+umap_ki$Cell <- rownames(umap_ki)
+umap_ki <- merge(umap_ki, query@meta.data, by = "Cell") 
+umap_ki <- umap_ki[,colnames(umap_ki) %in% c("Cell", "umapprojected_1", "umapprojected_2", "PatientLevel", "predicted_CellType_Broad", "DDHM1", "DDHM2", "DDHM3", "DDHM4", "DDHM5", "DDHM6", "DDHM7", "DDHM8", "DDHM9", "DDHM10", "DDHM11")]
+colnames(umap_ki)
+
+surface_markers <- data.frame(t(data@assays$ADT$scale.data))
+surface_markers$Cell <- rownames(surface_markers)
+data <- merge(umap_ki, surface_markers, by = "Cell")
+```
+
+```{r}
+write.csv(data, "results/source_data/UMAP_KI_all_data_compiled.csv")
 ```
 
 
@@ -345,9 +379,9 @@ library(ComplexHeatmap)
 ```
 
 ```{r}
-data_heatmap <- data
+data_heatmap <- data[,-c(2, 3, 4)]
 data_heatmap <- data_heatmap[!is.na(data_heatmap$predicted_CellType_Broad),]
-data_type <- colnames(data)[-c(1, 2)]
+data_type <- colnames(data_heatmap)[-c(1, 2)]
 data_type <- gsub("DDHM.*", "DDHMs", data_type)
 data_type[!grepl("DDHM", data_type)] <- "Surface_proteins"
 data_heatmap[,3:13] <- scale(data_heatmap[,3:13])
@@ -356,6 +390,8 @@ colnames(data_heatmap) <- gsub(".TotalA", "", colnames(data_heatmap))
 
 x <- names(table(data_heatmap$predicted_CellType_Broad)[table(data_heatmap$predicted_CellType_Broad) < 100])
 data_heatmap$predicted_CellType_Broad[data_heatmap$predicted_CellType_Broad %in% x] <- "Others"
+
+write.csv(data_heatmap, "results/source_data/UMAP_KI_data_heatmap.csv")
 
 pdf("results/figures/scRNA/KI/Heatmap_KI_CITE_seq_cell_types_BMmap_surface_proteins_factors.pdf", width = 11)
 Heatmap(t(data_heatmap[,-c(1,2)]), name = "Z-score", column_split = data_heatmap$predicted_CellType_Broad, row_split =  data_type, show_row_names = TRUE, show_column_names = FALSE, row_title_rot = 0, column_title_rot = 60)

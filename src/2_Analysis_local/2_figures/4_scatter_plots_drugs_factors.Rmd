@@ -24,6 +24,16 @@ library(smplot2)
 library(ggplot2)
 ```
 
+## load data
+```{r}
+load("data/input_files/Data_MOFA/MOFA_input_data/AML_MAexp_v05_filt.RData")
+```
+
+## load MOFA model
+```{r}
+load("data/input_files/Data_MOFA/MOFA_object/MOFA_model_v04.RData")
+```
+
 ## extract DDHM values
 ```{r}
 factors <- read.csv("processing/MOFA_transcriptomics_scores.csv", row.names = 1)
@@ -37,8 +47,7 @@ factors$Factor8_score <- -1*factors$Factor8_score
 
 
 ```{r}
-load("data/input_files/MOFA_input/AML_MAexp_v05.RData")
-drug <- data.frame(MAexp@ExperimentList@listData$DSRT@assays@data)
+drug <- data.frame(MAexp_filt@ExperimentList@listData$DSRT)
 drug <- data.frame(t(drug[,-c(1:2)]))
 drug$patient_id <- rownames(drug)
 
@@ -49,6 +58,9 @@ data <- merge(factors, drug, by = "patient_id")
 library(ggpubr)
 ```
 
+```{r}
+write.csv(data, "results/source_data/scatter_plots_Venetoclax_Sorafenib_KI.csv")
+```
 
 ```{r}
 a <- ggplot(data = data, mapping = aes(x = Factor2_score, y = FIMM115484)) +

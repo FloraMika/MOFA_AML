@@ -1,0 +1,761 @@
+---
+title: "Feature selection using MOFA"
+output:
+  pdf_document: default
+  html_notebook: default
+---
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+### set directory
+
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath("/home/flomik/Code/Hallmarks_AML")) 
+```
+
+```{r}
+library(MultiAssayExperiment)
+library(MOFA2)
+library(RColorBrewer)
+library(GSEABase)
+library(tidyverse)
+library(minfi)
+library(xlsx)
+library(org.Hs.eg.db)
+library(maditr)
+```
+
+# Analysis
+
+```{r}
+name_ana <- "AML_KI_retrospective"
+```
+
+## load data
+```{r}
+load("/home/flomik/Data/MOFA_R_Objects/AML_MAexp_v05.RData")
+ls()
+```
+
+## load MOFA object
+```{r}
+annot.df <- read.table("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_annot_features.txt", sep="\t", header = T, stringsAsFactors = F)
+load("/home/flomik/Data/MOFA_R_Objects/MOFA_v04_train_list.RData")
+```
+
+## Select MOFA object
+```{r}
+mofa.sel <- select_model(mofa.list)
+```
+
+## Model overview.
+```{r}
+plot_data_overview(mofa.sel)
+pdf("results/figures/MOFA_overview_model_Tojo.pdf")
+plot_data_overview(mofa.sel)
+dev.off()
+```
+## correlation factors
+Verify that the Factors are largely uncorrelated
+```{r}
+plot_factor_cor(mofa.sel)
+pdf("results/figures/correlation_factors_model_Tojo.pdf")
+plot_factor_cor(mofa.sel)
+dev.off()
+```
+## variance decomposition by factor
+Percentage of variance explained by each factor across each data modality
+```{r}
+plot_variance_explained(mofa.sel)
+pdf("results/figures/MOFA_variance_model_Tojo.pdf")
+plot_variance_explained(mofa.sel)
+dev.off()
+```
+
+## Total variance
+model is providing a good fit to the data
+```{r}
+plot_variance_explained(mofa.sel, plot_total = T)[[2]]
+pdf("results/figures/MOFA_variance_modeL_Tojo_plot_2.pdf")
+plot_variance_explained(mofa.sel, plot_total = T)[[2]]
+dev.off()
+```
+## checking model / percentage variance per factor
+```{r}
+mofa.sel@cache
+```
+```{r}
+colnames(mofa.sel@samples_metadata)
+```
+
+```{r}
+clinical_data <- read.xlsx("/home/flomik/Data/MOFA-paper-Data/AML_MOFA_retro_dataset/Clinical_mofa_retro.xlsx", 1)
+clinical_data <- clinical_data[!duplicated(clinical_data$patient_id),]
+names(clinical_data)[1] <- "sample"
+clinical_data$group <- "AML"
+```
+
+## add metadata
+```{r}
+# Sanity check
+stopifnot(all(sort(clinical_data$sample)==sort(unlist(samples_names(mofa.sel)$AML))))
+
+# Add sample metadata to the model
+samples_metadata(mofa.sel) <- clinical_data
+```
+
+
+
+```{r}
+correlate_factors_with_covariates(mofa.sel, 
+  covariates = c("sex", "age", "aml_etiology", "blast_bm_percentage", "blast_blood_abs", "genetic_risk", "complete_remission", "status", "ELN_2022_AO", "cytogenetic_risk", "who_perfstatus", "ELN2017", "time_days"), 
+  plot="log_pval"
+)
+
+pdf("results/figures/MOFA_covariate_association_model_Tojo.pdf")
+correlate_factors_with_covariates(mofa.sel, 
+  covariates = c("sex", "age", "aml_etiology", "blast_bm_percentage", "blast_blood_abs", "genetic_risk", "complete_remission", "status", "ELN_2022_AO", "cytogenetic_risk", "who_perfstatus", "ELN2017", "time_days"), 
+  plot="log_pval"
+)
+dev.off()
+```
+## Prepare cell types file
+
+```{r}
+cell_types <- read.csv("processing/cell_types_Johon_Dick_matrix_file.csv", row.names =  1)
+cell_types <- data.frame(t(cell_types))
+cell_types$Genes <- rownames(cell_types)
+cell_types$ID <- mapIds(org.Hs.eg.db, cell_types$Genes, keytype="SYMBOL", column= "ENSEMBL")
+print(nrow(cell_types))
+cell_types <- cell_types[!duplicated(cell_types$ID),]
+cell_types <- cell_types[!is.na(cell_types$ID),]
+rownames(cell_types) <- cell_types$ID
+cell_types$ID <- NULL
+#cell_types$Genes <- NULL
+#print(nrow(cell_types))
+#rownames(cell_types) <- paste0(rownames(cell_types), ".p")
+#cell_types <- t(cell_types)
+```
+
+## Load reactome
+```{r}
+ensembl.react <- read.table("/home/flomik/Data/MOFA_R_Objects/Ensembl2Reactome_All_Levels.txt", header = F, sep="\t", comment.char ="", quote = "")
+colnames(ensembl.react) <- c("ensembl.ID", "Path.ID", "URI", "Path.name", "Evidence", "Species")
+ensembl.react <- ensembl.react[ensembl.react$Species=="Homo sapiens",]
+```
+
+```{r}
+ensembl.react.m <- as.matrix(table(ensembl.react$Path.name, ensembl.react$ensembl.ID))
+attributes(ensembl.react.m)$class <- "matrix" 
+ensembl.react.m[ensembl.react.m>0] <- 1
+ensembl.react.m <- ensembl.react.m[rowSums(ensembl.react.m)!=0,]
+ensembl.react.m <- ensembl.react.m[,colSums(ensembl.react.m)!=0]
+```
+
+```{r}
+tmp1 <- colnames(ensembl.react.m)
+tmp2 <- annot.df[grepl("^.*\\.p$", annot.df$feature),]
+tmp1 <- as.character(tmp2$feature)[match(tmp1, tmp2$id)]
+tmp1[is.na(tmp1)] <- colnames(ensembl.react.m)[is.na(tmp1)]
+colnames(ensembl.react.m) <- tmp1
+```
+
+```{r}
+res.react.prot.pos <- run_enrichment(mofa.sel, view = "Proteomics", feature.sets = ensembl.react.m, sign = "positive")
+```
+
+```{r}
+keep_top_rows_df <- function(df,n_top=5) {
+  # Create a new data frame with NA values
+  df_new <- data.frame(matrix(NA, ncol = ncol(df), nrow = nrow(df)))
+  rownames(df_new) <- rownames(df)
+  colnames(df_new) <- colnames(df)
+  
+  # Loop through each column
+  for (i in 1:ncol(df)) {
+    # Select the top 5 rows for the current column
+    top_rows <- order(df[, i], decreasing = TRUE)[1:n_top]
+    
+    # Copy the values from the original data frame to the new data frame
+    df_new[top_rows, i] <- df[top_rows, i]
+  }
+  df_new <- df_new[rowSums(is.na(df_new)) != ncol(df_new), ]
+  df_new[is.na(df_new)] = 0
+  # Return the new data frame
+  return(df_new)
+}
+```
+
+```{r}
+options(repr.plot.width=9, repr.plot.height=10)
+p.values <- res.react.prot.pos$pval.adj
+p.values <- p.values[, colMeans(is.na(p.values)) < 1]
+p.values <- p.values[!rowSums(p.values>1e-15, na.rm = T) == ncol(p.values),, drop=FALSE]
+p.values[p.values < 1e-30] <- 1e-30
+#p.values[p.values > 1e-2] <- NA
+p.values <- -log10(p.values)
+p.values <- keep_top_rows_df(p.values,n_top=10)
+col <- colorRampPalette(c("grey97","red"))(n = 100)
+
+
+pdf("results/figures/heatmap_pathways_Tojo_positive_factors.pdf", height = 8)
+pheatmap::pheatmap(p.values, color = col, show_rownames = T, labels_row = str_trunc(rownames(p.values), width = 40),
+                   cluster_rows=TRUE, cluster_cols=FALSE,border_color = "#555555",fontsize =14,fontsize_row=14,fontsize_col=14)
+dev.off()
+```
+
+## load cell types
+```{r}
+monocytes <- read.xlsx("/home/flomik/Code/Hallmarks_AML/data/Villani_monocytes/aah4573_supplementary_tables_1-16.xlsx", 5)
+monocytes <- monocytes[,c(1, 8)]
+colnames(monocytes) <- c("Genes", "Cell_type")
+monocytes <- monocytes[-1,]
+monocytes <- monocytes[!is.na(monocytes$Cell_type),]
+monocytes$Value <- 1
+monocytes <- dcast(monocytes, Genes ~ Cell_type, value.var="Value")
+monocytes[is.na(monocytes)] <- 0
+monocytes$Genes <-  mapIds(org.Hs.eg.db, monocytes$Genes, column="ENSEMBL", keytype="SYMBOL")
+monocytes <- monocytes[!is.na(monocytes$Genes),]
+monocytes <- monocytes[!duplicated(monocytes),]
+```
+
+```{r}
+cell_types$Genes <- rownames(cell_types)
+```
+
+```{r}
+cell_types <- merge(cell_types, monocytes, by = "Genes", all.x = TRUE, all.y = TRUE)
+cell_types[is.na(cell_types)] <- 0
+rownames(cell_types) <- cell_types$Genes
+cell_types$Genes <- NULL
+print(nrow(cell_types))
+rownames(cell_types) <- paste0(rownames(cell_types), ".p")
+cell_types <- t(cell_types)
+```
+
+
+
+                   
+
+## Pathway analysis
+Reactome (v68) and the MSigDB C2 (v7.2) gene sets, using the positive and negative weights separately and the function run_enrichement, with default parameters
+```{r}
+data("reactomeGS")
+```
+
+```{r}
+reactome <- read.csv("processing/reactome_v68_matrix_file.csv", row.names = 1)
+reactome <- data.frame(t(reactome))
+reactome$Genes <- rownames(reactome)
+reactome$ID <- mapIds(org.Hs.eg.db, reactome$Genes, keytype="SYMBOL", column= "ENSEMBL")
+reactome <- reactome[!duplicated(reactome$ID),]
+reactome <- reactome[!is.na(reactome$ID),]
+rownames(reactome) <- reactome$ID
+reactome$ID <- NULL
+reactome$Genes <- NULL
+rownames(reactome) <- paste0(rownames(reactome), ".p")
+reactome <- t(reactome)
+```
+
+
+
+
+
+set.statistic = c("rank.sum"),
+statistical.test = c("cor.adj.parametric")
+alpha = 0.1,
+```{r}
+enrichment.parametric <- run_enrichment(
+  MOFAobject,
+  view = "Proteins",
+  feature.sets = cell_types,
+  factors = "all",
+  sign = "positive",
+  min.size = 10,
+  nperm = 1000,
+  p.adj.method = "fdr",
+  verbose = TRUE
+)
+
+summary_table <- data.frame(enrichment.parametric$pval.adj)
+summary_table[summary_table > 0.05] <- NA
+summary_table <- stack(summary_table)
+summary_table$Pathway <- rep(rownames(enrichment.parametric$pval.adj), 10)
+summary_table_pos_cell_type <- summary_table[!is.na(summary_table$values),]
+write.csv(summary_table_pos_cell_type, "processing/MOFA_table_nodes_cell_types_positive.csv", quote = FALSE)
+```
+
+
+```{r}
+enrichment.parametric <- run_enrichment(
+  MOFAobject,
+  view = "Proteins",
+  feature.sets = cell_types,
+  factors = "all",
+  sign = "negative",
+  min.size = 10,
+  nperm = 1000,
+  p.adj.method = "fdr",
+  verbose = TRUE
+)
+
+summary_table <- data.frame(enrichment.parametric$pval.adj)
+summary_table[summary_table > 0.05] <- NA
+summary_table <- stack(summary_table)
+summary_table$Pathway <- rep(rownames(enrichment.parametric$pval.adj), 10)
+summary_table_neg_cell_type <- summary_table[!is.na(summary_table$values),]
+write.csv(summary_table_neg_cell_type, "processing/MOFA_table_nodes_cell_types_negative.csv", quote = FALSE)
+```
+
+
+```{r}
+enrichment.parametric <- run_enrichment(
+  MOFAobject,
+  view = "Proteins",
+  feature.sets = reactome,
+  factors = "all",
+  sign = "positive",
+  min.size = 10,
+  nperm = 1000,
+  p.adj.method = "fdr",
+  verbose = TRUE
+)
+
+summary_table <- data.frame(enrichment.parametric$pval.adj)
+#summary_table[summary_table > 0.0000001] <- NA
+summary_table <- stack(summary_table)
+summary_table$Pathway <- rep(rownames(enrichment.parametric$pval.adj), 10)
+summary_table <- summary_table[order(summary_table$ind, summary_table$values),]
+summary_table <- summary_table %>% group_by(ind) %>% top_n(5,-values)
+summary_table_pos_pathways <- summary_table[!is.na(summary_table$values),]
+write.csv(summary_table_pos_pathways, "processing/MOFA_table_nodes_reactome_positive.csv", quote = FALSE)
+```
+
+```{r}
+enrichment.parametric <- run_enrichment(
+  MOFAobject,
+  view = "Proteins",
+  feature.sets =  reactome,
+  factors = "all",
+  sign = "negative",
+  min.size = 10,
+  nperm = 1000,
+  p.adj.method = "fdr",
+  verbose = TRUE
+)
+
+summary_table <- data.frame(enrichment.parametric$pval.adj)
+#summary_table[summary_table > 0.0000001] <- NA
+summary_table <- stack(summary_table)
+summary_table$Pathway <- rep(rownames(enrichment.parametric$pval.adj), 10)
+summary_table <- summary_table %>% group_by(ind) %>% top_n(5,-values)
+summary_table_neg_pathways <- summary_table[!is.na(summary_table$values),]
+write.csv(summary_table_neg_pathways, "processing/MOFA_table_nodes_reactome_negative.csv", quote = FALSE)
+```
+
+```{r}
+length(summary_table_pos_pathways$Pathway[!duplicated(summary_table_pos_pathways$Pathway)])
+```
+
+```{r}
+length(summary_table_neg_pathways$Pathway[!duplicated(summary_table_neg_pathways$Pathway)])
+```
+```{r}
+length(summary_table_pos_pathways$Pathway[summary_table_pos_pathways$Pathway %in% summary_table_neg_pathways$Pathway])
+```
+
+## bubble plot
+```{r}
+summary_table_pos_cell_type$sign <- "pos"
+summary_table_neg_cell_type$sign <- "neg"
+cell_type <- rbind(summary_table_pos_cell_type, summary_table_neg_cell_type)
+cell_type$values <- -log10(cell_type$values)
+```
+
+
+```{r}
+summary_table_pos_pathways$sign <- "pos"
+summary_table_neg_pathways$sign <- "neg"
+pathways <- rbind(summary_table_pos_pathways, summary_table_neg_pathways)
+pathways$values <- -log10(pathways$values)
+```
+
+
+```{r}
+cell_type <- cell_type[order(cell_type$sign, cell_type$values),]
+cell_type$Pathway <- factor(as.vector(cell_type$Pathway), levels = as.vector(cell_type$Pathway)[!duplicated(cell_type$Pathway)])
+```
+
+```{r}
+cell_type_filt <- cell_type[!grepl("100", cell_type$Pathway),]
+```
+
+```{r}
+cell_type_filt$Pathway <- as.vector(cell_type_filt$Pathway)
+cell_type_filt$Pathway <- gsub("\\.Top100", "", cell_type_filt$Pathway)
+```
+
+```{r}
+plot <- ggplot(cell_type_filt, aes(x = ind, y = Pathway)) + 
+  geom_point(aes(size = values, fill = sign), alpha = 0.75, shape = 21) + 
+  scale_size_continuous(limits = c(0.000001, 100), range = c(1, 10)) + 
+  labs( x= "", y = "", size = "Relative Abundance (%)", fill = "")  + 
+  theme(legend.key=element_blank(), 
+  axis.text.x = element_text(colour = "black", size = 12, face = "bold", angle = 90, vjust = 0.3, hjust = 1), 
+  axis.text.y = element_text(colour = "black", face = "bold", size = 11), 
+  legend.text = element_text(size = 10, face ="bold", colour ="black"), 
+  legend.title = element_text(size = 12, face = "bold"), 
+  panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2), 
+  legend.position = "right")
+
+plot
+ggsave("results/figures/bubble_plot_cell_types_top_250.png")
+```
+
+```{r}
+cell_type_filt <- cell_type[!grepl("250", cell_type$Pathway),]
+```
+
+```{r}
+cell_type_filt$Pathway <- as.vector(cell_type_filt$Pathway)
+cell_type_filt$Pathway <- gsub("\\.Top100", "", cell_type_filt$Pathway)
+```
+
+
+```{r}
+plot <- ggplot(cell_type_filt, aes(x = ind, y = Pathway)) + 
+  geom_point(aes(size = values, fill = sign), alpha = 0.75, shape = 21) + 
+  scale_size_continuous(limits = c(0.000001, 100), range = c(1, 10)) + 
+  labs( x= "", y = "", size = "Relative Abundance (%)", fill = "")  + 
+  theme(legend.key=element_blank(), 
+  axis.text.x = element_text(colour = "black", size = 12, face = "bold", angle = 90, vjust = 0.3, hjust = 1), 
+  axis.text.y = element_text(colour = "black", face = "bold", size = 11), 
+  legend.text = element_text(size = 10, face ="bold", colour ="black"), 
+  legend.title = element_text(size = 12, face = "bold"), 
+  panel.background = element_blank(), panel.border = element_rect(colour = "black", fill = NA, size = 1.2), 
+  legend.position = "right")
+
+plot
+ggsave("results/figures/bubble_plot_cell_types_top_100.png")
+```
+
+```{r}
+library(ggalluvial)
+```
+
+
+```{r}
+pathways_pos <- pathways[pathways$sign == "pos",]
+pathways_pos$values <- NULL
+pathways_pos$sign <- NULL
+colnames(pathways_pos)[2] <- "Pathway_P"
+```
+
+```{r}
+pathways_neg <- pathways[pathways$sign == "neg",]
+pathways_neg$values <- NULL
+pathways_neg$sign <- NULL
+colnames(pathways_neg)[2] <- "Pathway_N"
+```
+
+```{r}
+cell_type_filt_pos <- cell_type_filt[cell_type_filt$sign == "pos",]
+cell_type_filt_pos$values <- NULL
+cell_type_filt_pos$sign <- NULL
+colnames(cell_type_filt_pos)[2] <- "Cell_P"
+```
+
+```{r}
+cell_type_filt_neg <- cell_type_filt[cell_type_filt$sign == "neg",]
+cell_type_filt_neg$values <- NULL
+cell_type_filt_neg$sign <- NULL
+colnames(cell_type_filt_neg)[2] <- "Cell_N"
+```
+
+
+```{r}
+data <- merge(cell_type_filt_pos, cell_type_filt_neg, by = "ind")
+data$Freq <- 0
+```
+
+```{r}
+ggplot(data = data,
+       aes(axis1 = Cell_N, axis2 = ind,
+           y = Freq))+
+  geom_stratum(color = "black")+
+  geom_alluvium(aes(fill = ind))+
+  geom_text(stat = "stratum", alpha =  1, aes(label = after_stat(stratum))) +
+  theme_classic()+
+  scale_fill_brewer(type = "qual", palette = "Set2")
+ggsave("results/figures/sankey_plot_cell_types_N.png", width = 7, height = 5)
+```
+```{r}
+ggplot(data = data,
+       aes(axis1 = ind, axis2 = Cell_P,
+           y = Freq))+
+  geom_stratum(color = "black")+
+  geom_alluvium(aes(fill = ind))+
+  geom_text(stat = "stratum", alpha =  1, aes(label = after_stat(stratum))) +
+  theme_classic()+
+  scale_fill_brewer(type = "qual", palette = "Set2")
+ggsave("results/figures/sankey_plot_cell_types_P.png", width = 7, height = 5)
+```
+
+```{r}
+ggplot(data = data,
+       aes(axis1 = Cell_N, axis2 = ind, axis3 = Cell_P,
+           y = Freq))+
+  geom_stratum(color = "black")+
+  geom_alluvium(aes(fill = ind))+
+  geom_text(stat = "stratum", alpha =  1, aes(label = after_stat(stratum))) +
+  theme_classic()+
+  scale_fill_brewer(type = "qual", palette = "Set2")
+ggsave("results/figures/sankey_plot_cell_types.png", width = 7, height = 7)
+```
+
+```{r}
+data <- merge(data, pathways_neg, by = "ind")
+data <- merge(data, pathways_pos, by = "ind")
+data$Freq <- 1
+```
+
+```{r}
+ggplot(data = data,
+       aes(axis1 = Pathway_N, axis2 = Cell_N, axis3 = ind, axis4 = Cell_P, axis5 = Pathway_P,
+           y = Freq))+
+  geom_alluvium(aes(fill = ind))+
+  geom_stratum()+
+  geom_text(stat = "stratum", aes(label = after_stat(stratum))) +
+  theme_minimal()+
+  facet_wrap(~ ind, scales = "free_y")
+ggsave("results/figures/sankey_plot_cell_types_pathways.pdf", width = 20, height = 20)
+```
+
+
+```{r}
+table_edges_neg <- rbind(summary_table_neg_cell_type, summary_table_neg_pathways)
+table_edges_pos <- rbind(summary_table_pos_cell_type, summary_table_pos_pathways)
+```
+
+```{r}
+table_edges_pos$Pathway <- paste0(table_edges_pos$Pathway, "_pos")
+table_edges_neg$Pathway <- paste0(table_edges_neg$Pathway, "_neg")
+
+table_edges <- rbind(table_edges_pos, table_edges_neg)
+```
+
+```{r}
+table_nodes <- data.frame(Node_1 = c(as.vector(table_edges$Pathway), as.vector(table_edges$ind)))
+table_nodes$Type <- "Cell_type"
+table_nodes$Sign <- gsub(".*\\_", "", table_nodes$Node_1)
+table_nodes$name <- gsub("\\_.*", "", table_nodes$Node_1)
+table_nodes$Type[table_nodes$name %in% pathways$Pathway] <- "Pathway"
+table_nodes$Type[grepl("Factor", table_nodes$Node_1)] <- "Factor"
+table_nodes <- table_nodes[!duplicated(table_nodes$Node_1),]
+```
+
+```{r}
+write.csv(table_edges_pos, "processing/table_edges_pos_MOFA_cell_pathways.csv", quote = FALSE)
+write.csv(table_edges_neg, "processing/table_edges_neg_MOFA_cell_pathways.csv", quote = FALSE)
+write.csv(table_edges, "processing/table_edges_MOFA_cell_pathways.csv", quote = FALSE)
+write.csv(table_nodes, "processing/table_nodes_MOFA_cell_pathways.csv", quote = FALSE)
+```
+
+```{r}
+table_edges <-rbind(table_edges_neg, table_edges_pos)
+table_edges$type <- "fac-path"
+table_edges$name <- gsub("_neg", "", table_edges$Pathway)
+table_edges$name <- gsub("_pos", "", table_edges$name)
+```
+
+```{r}
+table_edges$name <- gsub("_", ".", table_edges$name)
+```
+
+```{r}
+path <- table_edges$name[!duplicated(table_edges$name)]
+```
+
+```{r}
+path_2 <- path[!path %in% rownames(reactome)]
+path_2
+```
+
+```{r}
+reactome <- reactome[rownames(reactome) %in% path,]
+```
+
+```{r}
+table_overlap <- data.frame(Path_1 = NA, Path_2 = NA, Overlap = NA)
+
+for (i in 2:nrow(reactome)-1) {
+  for (j in i + 1:nrow(reactome)-i) {
+    reactome_sub <- reactome[c(i,j),]
+    genes <- colSums(reactome_sub)[colSums(reactome_sub) ==2]
+    overlap <- length(genes)
+    if (overlap > 30) {
+      table_overlap_2 <- data.frame(Path_1 = rownames(reactome)[i], Path_2 = rownames(reactome)[j], Overlap = overlap)
+      table_overlap <- rbind(table_overlap, table_overlap_2)
+    }
+  }
+}
+```
+
+```{r}
+table_edges_pathways <- table_edges[table_edges$Pathway %in% table_nodes$Node_1[table_nodes$Type != "Cell_type"],]
+table_edges_pathways <- table_edges_pathways[!duplicated(table_edges_pathways$values),]
+colnames(table_edges_pathways)
+table_edges_pathways$values <- NULL
+colnames(table_edges_pathways)
+table_edges_pathways$Overlap <- NA
+colnames(table_edges_pathways)
+```
+
+```{r}
+table_overlap <- table_overlap[!is.na(table_overlap),]
+table_overlap$sign <- NA
+table_overlap$type <- "path-path"
+table_overlap$name <- NA
+colnames(table_overlap)[1:2] <- c("ind", "Pathway")
+colnames(table_overlap)
+table_overlap <- table_overlap[,c(1, 2, 4, 5, 6, 3)]
+colnames(table_overlap)
+```
+
+```{r}
+table_edges <- rbind(table_edges_pathways, table_overlap)
+```
+
+```{r}
+write.csv(table_edges, "processing/table_edges_MOFA_pathways_merged.csv", quote = FALSE)
+```
+
+```{r}
+factors_mofa <- get_factors(
+  MOFAobject,
+  groups = "all",
+  factors = "all",
+  scale = FALSE,
+  as.data.frame = FALSE
+)
+
+factors_mofa <- data.frame(factors_mofa[[1]])
+factors_mofa$patient <- rownames(factors_mofa)
+```
+
+
+
+```{r}
+pathways <- read.csv("processing/ssGSEA_cell_types_Dick_proteomics.csv", row.names = 1)
+pathways <- data.frame(t(pathways))
+pathways <- pathways[,colSums(is.na(pathways)) != 110]
+pathways$patient <- rownames(pathways)
+```
+
+
+```{r}
+data <- merge(factors_mofa, pathways, by = "patient")
+```
+
+```{r}
+table_correlation <- data.frame(Var1 = NA, Var2 = NA, R = NA, pval = NA)
+
+for (i in 2:11) {
+  for (j in 12:ncol(data)) {
+    #print(colnames(data)[i])
+    #print(colnames(data)[j])
+    res2 <-cor.test(data[,i], data[,j],  method = "spearman")
+    table_correlation_2 <- data.frame(Var1 = colnames(data)[i], Var2 = colnames(data)[j], R = res2$estimate, pval = res2$p.value)
+    table_correlation <- rbind(table_correlation, table_correlation_2)
+  }
+}
+
+table_correlation <- table_correlation[!is.na(table_correlation$Var1),]
+table_correlation$FDR <- p.adjust(table_correlation$pval, method = "fdr")
+
+write.csv(table_correlation, "processing/correlation_factors_cell_types_Dick.csv")
+table_correlation_filt <- table_correlation[table_correlation$FDR < 0.05,]
+table_correlation_filt <- table_correlation[abs(table_correlation$R) > 0.7,]
+write.csv(table_correlation_filt, "processing/correlation_factors_cell_types_Dick_filt.csv")
+table_correlation_cell <- table_correlation_filt
+```
+
+
+```{r}
+data <- data[, colnames(data) %in% c("Factor2", table_correlation_filt$Var2)]
+data <- data[,!grepl("100", colnames(data))]
+```
+
+```{r}
+data_2 <- stack(data[,-1])
+data_2$Factor2 <- rep(data$Factor2, 8)
+```
+
+```{r}
+ggplot(data_2, aes(x=Factor2, y=values, group = ind, color=ind))+ 
+  geom_smooth(method=lm, se=FALSE, fullrange=TRUE)+theme_classic()+ stat_cor(method = "spearman", p.accuracy = 0.001, r.accuracy = 0.01)
+
+ggsave("results/figures/scatter_plot_correlation_cell_types_factor_2.png")
+```
+
+```{r}
+pathways <- read.csv("processing/ssGSEA_pathways_reactome_68_proteomics.csv", row.names = 1)
+pathways <- data.frame(t(pathways))
+pathways <- pathways[,colSums(is.na(pathways)) != 110]
+pathways$patient <- rownames(pathways)
+```
+
+
+```{r}
+data <- merge(factors_mofa, pathways, by = "patient")
+```
+
+```{r}
+table_correlation <- data.frame(Var1 = NA, Var2 = NA, R = NA, pval = NA)
+
+for (i in 2:11) {
+  for (j in 12:ncol(data)) {
+    #print(colnames(data)[i])
+    #print(colnames(data)[j])
+    res2 <-cor.test(data[,i], data[,j],  method = "spearman")
+    table_correlation_2 <- data.frame(Var1 = colnames(data)[i], Var2 = colnames(data)[j], R = res2$estimate, pval = res2$p.value)
+    table_correlation <- rbind(table_correlation, table_correlation_2)
+  }
+}
+
+table_correlation <- table_correlation[!is.na(table_correlation$Var1),]
+table_correlation$FDR <- p.adjust(table_correlation$pval, method = "fdr")
+
+write.csv(table_correlation, "processing/correlation_factors_pathways_reactome_v68.csv")
+table_correlation_filt <- table_correlation[table_correlation$FDR < 0.05,]
+table_correlation_filt <- table_correlation[abs(table_correlation$R) > 0.7,]
+write.csv(table_correlation_filt, "processing/correlation_factors_pathways_reactome_v68_filt.csv")
+```
+
+```{r}
+table(table_correlation_filt$Var1)
+```
+```{r}
+table_correlation_filt <- table_correlation_filt[order(table_correlation_filt$pval),]
+```
+
+```{r}
+for (i in c(1, 2, 4, 8)) {
+  factor <- paste0("Factor",i)
+  table_correlation_filt_2 <- table_correlation_filt[table_correlation_filt$Var1 == factor,]
+  table_correlation_filt_2 <- table_correlation_filt_2[1:15,]
+  table_correlation_filt_2 <- table_correlation_filt_2[!is.na(table_correlation_filt_2$Var2),]
+  data_2 <- data[, colnames(data) %in% c(factor, table_correlation_filt_2$Var2)]
+  data_3 <- stack(data_2[,-1])
+  data_3[factor] <- rep(data_2[,1], ncol(data_2) -1)
+  ggplot(data_3, aes(x=data_3[, 3], y=values, group = ind, color=ind))+ 
+    geom_smooth(method=lm, se=FALSE, fullrange=TRUE)+
+    theme_classic()+ 
+    stat_cor(method = "spearman", p.accuracy = 0.001, r.accuracy = 0.01)+xlab(factor)
+  
+  ggsave(paste0("results/figures/scatter_plot_correlation_top_pathways_", factor, ".png"), width = 7, height = 4)
+}
+```

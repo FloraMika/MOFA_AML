@@ -99,6 +99,12 @@ path_pos_2$type <- "path-factor"
 ```
 
 ```{r}
+path_pos[is.na(path_pos)] <- 0
+Heatmap(path_pos)
+```
+
+
+```{r}
 pathways <- rbind(path_pos_2, path_neg_2)
 ```
 
@@ -122,6 +128,10 @@ newcoord_down <- newcoord_down %>% dplyr::select(xdown = x, ydown = y)
 # you need to repeat each row of your previous data frame 3 times
 repdata <- map_df(1:nrow(mydat_wide), function(i) mydat_wide[rep(i, 3), ])
 newdata <- bind_cols(repdata, newcoord_up, newcoord_down)
+```
+
+```{r}
+write.csv(newdata, "results/source_data/data_pathways_half_triangles.csv")
 ```
 
 ```{r}
