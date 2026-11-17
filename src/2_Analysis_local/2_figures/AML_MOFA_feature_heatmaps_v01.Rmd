@@ -1,0 +1,166 @@
+---
+title: "Heatmap top features"
+output: html_notebook
+---
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+```{r}
+path <- getwd()
+new_path <- gsub("MOFA_AML/.*","MOFA_AML/",path)
+```
+
+### set directory (replace by your repository)
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath(new_path)) 
+```
+
+
+## load data
+```{r}
+load("data/input_files/Data_MOFA/MOFA_input_data/AML_MAexp_v05_filt.RData")
+load("~/Data/data_franscesco/DNAm/AML_DNAm_GenomicRatioSet_v01.RData")
+```
+
+## load MOFA model
+```{r}
+load("data/input_files/Data_MOFA/MOFA_object/MOFA_model_v04.RData")
+```
+
+# Factor 5
+```{r}
+pdf("results/figures/MOFA/AML_MOFA_feature_heatmaps_F5_v01.pdf", width = 10, height = 13)
+
+## Transcripts
+plot_top_weights(mofa.sel,view = "RNAseq", factor = "Factor5", nfeatures = 20, sign = "positive") -> p1.pos
+plot_top_weights(mofa.sel,view = "RNAseq", factor = "Factor5", nfeatures = 20,sign = "negative") -> p1.neg
+
+toPlot <- get_data(mofa.sel, views = "RNAseq")$RNAseq$AML
+toPlot <- toPlot[c(as.character(p1.pos$data$feature), rev(as.character(p1.neg$data$feature))),]
+rownames(toPlot) <- mapIds(org.Hs.eg.db, keys = sapply(strsplit(rownames(toPlot), ".", fixed = T),"[", 1), column = "SYMBOL", keytype = "ENSEMBL")
+
+
+get_factors(mofa.sel,factors = "Factor5", as.data.frame = T) %>%
+  select(sample, value) %>%
+  rename(ID=sample, Factor5=value) %>% 
+  arrange(Factor5) -> annot.table
+
+toPlot <- toPlot[,annot.table$ID]
+
+annot.table[match(colnames(toPlot), annot.table$ID),] %>%
+  remove_rownames() %>% 
+  column_to_rownames("ID") -> annot.table
+
+write.csv(t(scale(t(toPlot))), "results/source_data/heatmap_F5_transcriptomics_z_score.csv")
+
+Heatmap(t(scale(t(toPlot))), name = "Transcript Z-score",
+        cluster_rows = F, cluster_columns = F,
+        show_row_names = T, show_column_names = F,
+        row_names_gp = gpar(fontsize = 8)
+) -> ht.rna
+
+## Proteins
+plot_top_weights(mofa.sel,view = "Proteomics", factor = "Factor5", nfeatures = 20, sign = "positive") -> p1.pos
+plot_top_weights(mofa.sel,view = "Proteomics", factor = "Factor5", nfeatures = 20,sign = "negative") -> p1.neg
+
+toPlot <- get_data(mofa.sel, views = "Proteomics")$Proteomics$AML
+toPlot <- toPlot[c(as.character(p1.pos$data$feature), rev(as.character(p1.neg$data$feature))),]
+rownames(toPlot) <- mapIds(org.Hs.eg.db, keys = sapply(strsplit(rownames(toPlot), ".", fixed = T),"[", 1), column = "SYMBOL", keytype = "ENSEMBL")
+
+get_factors(mofa.sel,factors = "Factor5", as.data.frame = T) %>%
+  select(sample, value) %>%
+  rename(ID=sample, Factor5=value) %>% 
+  arrange(Factor5) -> annot.table
+
+toPlot <- toPlot[,annot.table$ID]
+
+annot.table[match(colnames(toPlot), annot.table$ID),] %>%
+  remove_rownames() %>% 
+  column_to_rownames("ID") -> annot.table
+
+write.csv(t(scale(t(toPlot))), "results/source_data/heatmap_F5_proteomics_z_score.csv")
+
+Heatmap(t(scale(t(toPlot))), name = "Protein Z-score",
+        cluster_rows = F, cluster_columns = F,
+        show_row_names = T, show_column_names = F,
+        row_names_gp = gpar(fontsize = 8)
+) -> ht.prot
+
+## DNAm
+plot_top_weights(mofa.sel,view = "DNAm", factor = "Factor5", nfeatures = 20, sign = "positive") -> p1.pos
+plot_top_weights(mofa.sel,view = "DNAm", factor = "Factor5", nfeatures = 20,sign = "negative") -> p1.neg
+
+toPlot <- get_data(mofa.sel, views = "DNAm")$DNAm$AML
+toPlot <- toPlot[c(as.character(p1.pos$data$feature), rev(as.character(p1.neg$data$feature))),]
+rownames(toPlot) <- paste0(as.character(seqnames(data.Rset[rownames(toPlot),])),
+                           ":",
+                           end(data.Rset[rownames(toPlot),]),
+                           " ",
+                           features_metadata(mofa.sel)$name[match(rownames(toPlot), features_metadata(mofa.sel)$id)])
+
+get_factors(mofa.sel,factors = "Factor5", as.data.frame = T) %>%
+  select(sample, value) %>%
+  rename(ID=sample, Factor5=value) %>% 
+  arrange(Factor5) -> annot.table
+
+toPlot <- toPlot[,annot.table$ID]
+
+annot.table[match(colnames(toPlot), annot.table$ID),] %>%
+  remove_rownames() %>% 
+  column_to_rownames("ID") -> annot.table
+
+write.csv(toPlot, "results/source_data/heatmap_F5_methylation.csv")
+
+Heatmap(toPlot, name = "DNAm M-value",
+        cluster_rows = F, cluster_columns = F,
+        show_row_names = T, show_column_names = F,
+        row_names_gp = gpar(fontsize = 8)
+) -> ht.DNAm
+
+## Mutations oncoprint
+plot_top_weights(mofa.sel,view = "Mutations", factor = "Factor5", nfeatures = Inf, sign="all") -> p1.mut
+
+toPlot <- get_data(mofa.sel, views = "Mutations")$Mutations$AML
+#rownames(toPlot) <- features_metadata(mofa.sel)$name[match(rownames(toPlot), features_metadata(mofa.sel)$id)]
+
+get_factors(mofa.sel,factors = "Factor5", as.data.frame = T) %>%
+  select(sample, value) %>%
+  rename(ID=sample, Factor5=value) %>%
+  arrange(Factor5) -> annot.table
+
+toPlot <- toPlot[,annot.table$ID]
+
+annot.table[match(colnames(toPlot), annot.table$ID),] %>%
+  remove_rownames() %>%
+  column_to_rownames("ID") -> annot.table
+
+write.csv(toPlot, "results/source_data/heatmap_F5_mutations.csv")
+
+tmp <- toPlot
+tmp[tmp==1] <- "Presence"
+tmp[tmp==0] <- ""
+
+col=c(Presence="blue")
+
+oncoPrint(tmp,
+          get_type = function(x) {x},
+          alter_fun = list(
+            Presence = function(x, y, w, h) grid::grid.rect(x, y, w*0.9, h*0.9, gp = grid::gpar(fill = col["Presence"], col = NA))
+          ),
+          col=col, show_pct = F, top_annotation = NULL, heatmap_legend_param = list(title="Mutations"),
+          row_names_gp = gpar(fontsize = 8),
+          row_order =  features_metadata(mofa.sel)$name[match(as.character(p1.mut$data$feature),features_metadata(mofa.sel)$id)]) -> ht.oncoprint
+
+## top annotation
+top_annotation = HeatmapAnnotation(df=annot.table,
+                                   col = list(Factor5= circlize::colorRamp2(c(min(annot.table$Factor5), 0, max(annot.table$Factor5)), c("blue", "yellow", "red"))))
+
+# draw heatmaps
+top_annotation %v% ht.rna %v% ht.prot %v% ht.DNAm %v% ht.oncoprint
+
+dev.off()
+```
+

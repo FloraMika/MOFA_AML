@@ -1,0 +1,362 @@
+---
+title: "AML MOFA selected pathways plots"
+author: "Francesco Marabita"
+output:
+  html_document:
+    fig_width: 7
+    fig_height: 7
+    theme: cerulean
+    toc: yes
+    number_sections: true
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+---
+
+### clean environment
+```{r}
+rm(list=ls())
+```
+
+```{r}
+path <- getwd()
+new_path <- gsub("MOFA_AML/.*","MOFA_AML/",path)
+```
+
+### set directory (replace by your repository)
+```{r setup}
+    knitr::opts_knit$set(root.dir = normalizePath(new_path)) 
+```
+
+  
+```{r}
+library(MultiAssayExperiment)
+library(SummarizedExperiment)
+library(ComplexHeatmap)
+library(RColorBrewer)
+library(MOFA2)
+library(GSEABase)
+library(org.Hs.eg.db)
+library(tidyverse)
+```
+
+
+### load MOFA object (replace by directory)
+```{r}
+load("data/input_files/Data_MOFA/MOFA_object/MOFA_model_v04.RData")
+mofa.sel
+```
+
+```{r}
+sel.path <- readxl::read_excel("data/Pathways/Reactome_signatures_MOFA.xlsx")
+```
+
+
+# Enrichment analysis
+
+## Reactome RNA
+
+Read reactome flat files (v77) for Homo sapiens.
+```{r}
+read_delim("~/Data/MOFA_R_Objects/Ensembl2Reactome_All_Levels.txt",
+           col_names = c("ensembl.ID", "Path.ID", "URI", "Path.name", "Evidence", "Species"), delim = "\t") %>%
+  filter(Species=="Homo sapiens") -> ensembl.react
+# ensembl.react <- read.table("~/Projects/DHR/ext_data/Ensembl2Reactome_All_Levels.txt", header = F, sep="\t", comment.char ="", quote = "")
+# colnames(ensembl.react) <- c("ensembl.ID", "Path.ID", "URI", "Path.name", "Evidence", "Species")
+# ensembl.react <- ensembl.react[ensembl.react$Species=="Homo sapiens",]
+```
+
+Create a binary membership matrix (rows are feature sets and columns are features).
+```{r}
+ensembl.react.m <- as.matrix(table(ensembl.react$Path.name, ensembl.react$ensembl.ID))
+attributes(ensembl.react.m)$class <- "matrix" 
+ensembl.react.m[ensembl.react.m>0] <- 1
+ensembl.react.m <- ensembl.react.m[rowSums(ensembl.react.m)!=0,]
+ensembl.react.m <- ensembl.react.m[,colSums(ensembl.react.m)!=0]
+```
+
+The columns matching the feature.ID will have their name changed to match the features in MOFA.
+```{r}
+tmp1 <- colnames(ensembl.react.m)
+tmp2 <- features_metadata(mofa.sel)
+tmp2 <- tmp2[grepl("^.*\\.g$", tmp2$feature),]
+tmp2$id <- gsub(".g", "", tmp2$feature)
+tmp1 <- as.character(tmp2$feature)[match(tmp1, tmp2$id)]
+tmp1[is.na(tmp1)] <- colnames(ensembl.react.m)[is.na(tmp1)]
+colnames(ensembl.react.m) <- tmp1
+```
+
+### Positive sign
+
+```{r, fig.width=7, fig.height=20}
+res.r.pos <- run_enrichment(mofa.sel, view = "RNAseq", feature.sets = ensembl.react.m, sign = "positive")
+p.r.pos <- res.r.pos$pval.adj
+p.r.pos <- p.r.pos[, colMeans(is.na(p.r.pos)) < 1]
+p.r.pos <- -log10(p.r.pos)
+col <- colorRampPalette(c("lightgrey", "red"))(n = 100)
+pheatmap::pheatmap(p.r.pos[!rowSums(p.r.pos>6, na.rm = T) == ncol(p.r.pos),, drop=FALSE],
+                   color = col, show_rownames = T, cluster_cols = F,  labels_row = str_trunc(rownames(p.r.pos), width = 40))
+```
+### Negative sign
+
+```{r, fig.width=7, fig.height=20}
+res.r.neg <- run_enrichment(mofa.sel, view = "RNAseq", feature.sets = ensembl.react.m, sign = "negative")
+p.r.neg <- res.r.neg$pval.adj
+p.r.neg <- p.r.neg[, colMeans(is.na(p.r.neg)) < 1]
+p.r.neg <- -log10(p.r.neg)
+col <- colorRampPalette(c("lightgrey", "red"))(n = 100)
+pheatmap::pheatmap(p.r.neg[!rowSums(p.r.neg>6, na.rm = T) == ncol(p.r.neg),, drop=FALSE],
+                   color = col, show_rownames = T, cluster_cols=F, labels_row = str_trunc(rownames(p.r.neg), width = 40))
+```
+
+
+### Reactome Protein
+
+Create a binary membership matrix (rows are feature sets and columns are features).
+```{r}
+ensembl.react.m <- as.matrix(table(ensembl.react$Path.name, ensembl.react$ensembl.ID))
+attributes(ensembl.react.m)$class <- "matrix" 
+ensembl.react.m[ensembl.react.m>0] <- 1
+ensembl.react.m <- ensembl.react.m[rowSums(ensembl.react.m)!=0,]
+ensembl.react.m <- ensembl.react.m[,colSums(ensembl.react.m)!=0]
+```
+
+The columns matching the feature.ID will have their name changed to match the features in MOFA.
+```{r}
+tmp1 <- colnames(ensembl.react.m)
+tmp2 <- features_metadata(mofa.sel)
+tmp2 <- tmp2[grepl("^.*\\.p$", tmp2$feature),]
+tmp2$id <- gsub(".p", "", tmp2$feature)
+tmp1 <- as.character(tmp2$feature)[match(tmp1, tmp2$id)]
+tmp1[is.na(tmp1)] <- colnames(ensembl.react.m)[is.na(tmp1)]
+colnames(ensembl.react.m) <- tmp1
+```
+
+#### Positive sign
+
+```{r, fig.width=7, fig.height=20}
+res.p.pos <- run_enrichment(mofa.sel, view = "Proteomics", feature.sets = ensembl.react.m, sign = "positive")
+p.p.pos <- res.p.pos$pval.adj
+p.p.pos <- p.p.pos[, colMeans(is.na(p.p.pos)) < 1]
+p.p.pos <- -log10(p.p.pos)
+col <- colorRampPalette(c("lightgrey", "red"))(n = 100)
+pheatmap::pheatmap(p.p.pos[!rowSums(p.p.pos>6, na.rm = T) == ncol(p.p.pos),, drop=FALSE],
+                   color = col, show_rownames = T, cluster_cols = F, labels_row = str_trunc(rownames(p.p.pos), width = 40))
+```
+
+
+#### Negative sign
+
+```{r, fig.width=7, fig.height=20}
+res.p.neg <- run_enrichment(mofa.sel, view = "Proteomics", feature.sets = ensembl.react.m, sign = "negative")
+p.p.neg <- res.p.neg$pval.adj
+p.p.neg <- p.p.neg[, colMeans(is.na(p.p.neg)) < 1]
+p.p.neg <- -log10(p.p.neg)
+col <- colorRampPalette(c("lightgrey", "red"))(n = 100)
+pheatmap::pheatmap(p.p.neg[!rowSums(p.p.neg>6, na.rm = T) == ncol(p.p.neg),, drop=FALSE],
+                   color = col, show_rownames = T, cluster_cols = F, labels_row = str_trunc(rownames(p.p.neg), width = 40))
+```
+
+Only top pathways (FDR<10^-25)
+
+```{r, fig.width=16, fig.height=6}
+hm1 <- Heatmap(t(p.r.pos),
+               name="-log10(FDR)",
+               column_title = "Transcripts positive weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = T, show_column_names = F,
+               cluster_columns = T, cluster_rows = F,
+               clustering_distance_columns = "pearson",
+               row_names_side = "left",
+               column_names_side = "bottom",
+               bottom_annotation = columnAnnotation(
+                 pathways=anno_mark(
+                   at = which(rowSums(p.r.pos>=25)>=1),
+                   labels = str_trunc(names(which(rowSums(p.r.pos>=25)>=1)),40),
+                   side="bottom"
+                 )
+               ),
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+hm2 <- Heatmap(t(p.r.neg),
+               name="-log10(FDR)",
+               column_title = "Transcripts negative weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = F, show_column_names = F,
+               cluster_columns = T, cluster_rows = F,
+                clustering_distance_columns = "pearson",
+               column_names_side = "bottom",
+               bottom_annotation = columnAnnotation(
+                 pathways=anno_mark(
+                   at = which(rowSums(p.r.neg>=25)>=1),
+                   labels = str_trunc(names(which(rowSums(p.r.neg>=25)>=1)),40),
+                   side="bottom"
+                 )
+               ),
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+hm3 <- Heatmap(t(p.p.pos),
+               name="-log10(FDR)",
+               column_title = "Proteins positive weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = F, show_column_names = F,
+               cluster_columns = T, cluster_rows = F,
+               clustering_distance_columns = "pearson",
+               column_names_side = "bottom",
+               bottom_annotation = columnAnnotation(
+                 pathways=anno_mark(
+                   at = which(rowSums(p.p.pos>=25)>=1),
+                   labels = str_trunc(names(which(rowSums(p.p.pos>=25)>=1)), 40),
+                   side="bottom"
+                 )
+               ),
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+
+hm4 <- Heatmap(t(p.p.neg),
+               name="-log10(FDR)",
+               column_title = "Proteins negative weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = F, show_column_names = F,
+               cluster_columns = T, cluster_rows = F,
+               clustering_distance_columns = "pearson",
+               column_names_side = "bottom",
+               bottom_annotation = columnAnnotation(
+                 pathways=anno_mark(
+                   at = which(rowSums(p.p.neg>=25)>=1),
+                   labels = str_trunc(names(which(rowSums(p.p.neg>=25)>=1)), 40),
+                   side="bottom"
+                 )
+               ),
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+#hm1+hm2+hm3+hm4
+```
+
+Only selected pathways
+
+```{r fig.width=20, fig.height=10}
+
+write.csv(t(p.r.pos[tolower(rownames(p.r.pos)) %in% tolower(sel.path$rna_pos),]), "results/source_data/data_heatmap_pathways_selected_pathways_trans_positive.csv")
+
+
+hm1 <- Heatmap(t(p.r.pos[tolower(rownames(p.r.pos)) %in% tolower(sel.path$rna_pos),]),
+               name="-log10(FDR)",
+               column_title = "Transcripts positive weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = T, show_column_names = T,
+               cluster_columns = T, cluster_rows = F,
+               clustering_distance_columns = "pearson",
+               row_names_side = "left",
+               column_names_side = "bottom",
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+write.csv(t(p.r.neg[tolower(rownames(p.r.neg)) %in% tolower(sel.path$rna_neg),]), "results/source_data/data_heatmap_pathways_selected_pathways_trans_negative.csv")
+
+hm2 <- Heatmap(t(p.r.neg[tolower(rownames(p.r.neg)) %in% tolower(sel.path$rna_neg),]),
+               name="-log10(FDR)",
+               column_title = "Transcripts negative weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = F, show_column_names = T,
+               cluster_columns = T, cluster_rows = F,
+                clustering_distance_columns = "pearson",
+               column_names_side = "bottom",
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+write.csv(t(p.p.pos[tolower(rownames(p.p.pos)) %in% tolower(sel.path$prot_pos),]), "results/source_data/data_heatmap_pathways_selected_pathways_prot_positive.csv")
+
+hm3 <- Heatmap(t(p.p.pos[tolower(rownames(p.p.pos)) %in% tolower(sel.path$prot_pos),]),
+               name="-log10(FDR)",
+               column_title = "Proteins positive weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = F, show_column_names = T,
+               cluster_columns = T, cluster_rows = F,
+               clustering_distance_columns = "pearson",
+               column_names_side = "bottom",
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+
+write.csv(t(p.p.pos[tolower(rownames(p.p.pos)) %in% tolower(sel.path$prot_pos),]), "results/source_data/data_heatmap_pathways_selected_pathways_prot_negative.csv")
+
+hm4 <- Heatmap(t(p.p.neg[tolower(rownames(p.p.neg)) %in% tolower(sel.path$prot_neg),]),
+               name="-log10(FDR)",
+               column_title = "Proteins negative weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = F, show_column_names = T,
+               cluster_columns = T, cluster_rows = F,
+               clustering_distance_columns = "pearson",
+               column_names_side = "bottom",
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+pdf("results/figures/GSEA/heatmaps_francesco_pathways_selected.pdf", width = 12, height = 8)
+draw(hm1+hm2+hm3+hm4, padding = unit(c(50, 2, 2, 2), "mm"))
+dev.off()
+```
+
+Only first three per factor.
+
+```{r fig.width=20, fig.height=10}
+mat <- t(p.r.pos[unique(unlist(lapply(colnames(p.r.pos), function(x) names(sort(p.r.pos[,x], decreasing = T)[1:3])))),])
+colnames(mat) <- str_trunc(colnames(mat), width = 50)
+
+write.csv(mat, "results/source_data/data_heatmap_pathways_three_trans_positive.csv")
+
+hm1 <- Heatmap(mat,
+               name="-log10(FDR)",
+               column_title = "Transcripts positive weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = T, show_column_names = T,
+               cluster_columns = T, cluster_rows = F,
+               clustering_distance_columns = "pearson",
+               row_names_side = "left",
+               column_names_side = "bottom",
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+mat <-t(p.r.neg[unique(unlist(lapply(colnames(p.r.neg), function(x) names(sort(p.r.neg[,x], decreasing = T)[1:3])))),])
+colnames(mat) <- str_trunc(colnames(mat), width = 50)
+
+write.csv(mat, "results/source_data/data_heatmap_pathways_three_trans_negative.csv")
+
+hm2 <- Heatmap(mat,
+               name="-log10(FDR)",
+               column_title = "Transcripts negative weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = F, show_column_names = T,
+               cluster_columns = T, cluster_rows = F,
+                clustering_distance_columns = "pearson",
+               column_names_side = "bottom",
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+mat <- t(p.p.pos[unique(unlist(lapply(colnames(p.p.pos), function(x) names(sort(p.p.pos[,x], decreasing = T)[1:3])))),])
+colnames(mat) <- str_trunc(colnames(mat), width = 50)
+
+write.csv(mat, "results/source_data/data_heatmap_pathways_three_prot_positive.csv")
+
+hm3 <- Heatmap(mat,
+               name="-log10(FDR)",
+               column_title = "Proteins positive weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = F, show_column_names = T,
+               cluster_columns = T, cluster_rows = F,
+               clustering_distance_columns = "pearson",
+               column_names_side = "bottom",
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+mat <- t(p.p.neg[unique(unlist(lapply(colnames(p.p.neg), function(x) names(sort(p.p.neg[,x], decreasing = T)[1:3])))),])
+colnames(mat) <- str_trunc(colnames(mat), width = 50)
+
+write.csv(mat, "results/source_data/data_heatmap_pathways_three_prot_negative.csv")
+
+hm4 <- Heatmap(mat,
+               name="-log10(FDR)",
+               column_title = "Proteins negative weights",
+               column_title_gp = gpar(fontsize=16, fontface = "bold"),
+               show_row_names = F, show_column_names = T,
+               cluster_columns = T, cluster_rows = F,
+               clustering_distance_columns = "pearson",
+               column_names_side = "bottom", 
+               col = circlize::colorRamp2(c(1, 40), c("gray95", "red"), space = "RGB"))
+
+pdf("results/figures/GSEA/heatmaps_francesco_pathways_three_per_factor.pdf", width = 20, height = 8)
+draw(hm1+hm2+hm3+hm4, padding = unit(c(50, 2, 2, 2), "mm"))
+dev.off()
+```
+
