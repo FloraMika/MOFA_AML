@@ -45,6 +45,20 @@ factors$Factor4_score <- -1*factors$Factor4_score
 factors$Factor8_score <- -1*factors$Factor8_score
 ```
 
+```{r}
+library(reshape2)
+```
+
+
+```{r}
+drug <- data.frame(MAexp_filt@ExperimentList@listData$DSRT)
+drug <- drug[!is.na(drug)]
+drug <- melt(drug)
+```
+
+```{r}
+plot(density(drug)) 
+```
 
 ```{r}
 drug <- data.frame(MAexp_filt@ExperimentList@listData$DSRT)

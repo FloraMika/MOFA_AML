@@ -315,6 +315,16 @@ query@meta.data$DDHM8 <- -1*query@meta.data$DDHM8
 write.csv(query@meta.data, "results/scRNA/scores_cells_and_factors_CITE_seq_Zheng_prospective_corrected.csv")
 ```
 
+```{r}
+table_sum <- query@meta.data
+
+table_sum <- table_sum[, colnames(table_sum) %in% c("UMAP1_projected", "UMAP2_projected", "predicted_CellType_Broad", "DDHM1", "DDHM2", "DDHM3", "DDHM4", "DDHM5", "DDHM6", "DDHM7", "DDHM8", "DDHM9", "DDHM10", "DDHM11")]
+```
+
+```{r}
+write.csv(table_sum, "results/scRNA/umap_CITE_seq_Zheng_prospective_corrected_cell_types_ddhms.csv")
+```
+
 # Visualize Hematopoietic Pseudotime in query data
 
 ```{r}
@@ -357,5 +367,8 @@ for(i in seq(40,60, 2)){
   ggsave(paste0("results/figures/scRNA/Zheng/review_score_plot_", colnames(query@meta.data)[i],"_scores_MOFA_Zheng.pdf"), width = 5, height = 3.5)
   a <- a + 1
 }
+```
+```{r}
+saveRDS(query, "data/input_files/CITE_seq/scAML_Zeng_2025_projected_cleaned_cell_ddhms.rds")
 ```
 
